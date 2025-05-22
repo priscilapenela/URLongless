@@ -1,0 +1,139 @@
+.siteHeader {
+    width: 100%;
+    background-color: #4724f6;
+    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+}
+
+.headerContent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 40px 160px;
+}
+
+@media (max-width: 991px) {
+    .headerContent {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+}
+  
+@media (max-width: 640px) {
+    .headerContent {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+}
+
+.logo {
+    color: #fff;
+    font-size: 45px;
+    font-weight: 700;
+}
+
+.navLinks {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+  
+@media (max-width: 991px) {
+    .navLinks {
+      display: none;
+    }
+}
+  
+.navLink {
+    padding: 8px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    text-decoration: none;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+@media (max-width: 991px) {
+    .headerActions {
+      display: none;
+    }
+}
+  
+.languageSelector {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 3px;
+    color: #ffff;
+}
+  
+.languageIconText {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: x-large;
+}
+  
+.languageText {
+    color: #fefefe;
+    font-size: 16px;
+    letter-spacing: 1.28px;
+}
+  
+.loginButton {
+    color: #fff;
+    font-size: 20px;
+    letter-spacing: 1.6px;
+    padding: 8px 16px;
+    border: 2px solid #fff;
+    border-radius: 16px;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.5s ease-out;
+}
+
+.loginButton:hover{
+    background-color: #fefefe7e;
+    border: #fefefe7e;
+}
+  
+.signupButton {
+    color: #4724f6;
+    font-size: 20px;
+    letter-spacing: 1.6px;
+    padding: 8px 16px;
+    background-color: #fefefe;
+    border-radius: 16px;
+    border: 2px solid #4724f6;
+    cursor: pointer;
+}
+
+.mobileMenu {
+    display: block;
+    padding: 1rem;
+}
+  
+.mobileMenu IoMdMenu{
+    color: white;
+    stroke: white;
+}
+
+@media (min-width: 768px) {
+    .mobileMenu {
+      display: none;
+}
+}
+  
+@media (max-width: 991px) {
+    .mobileMenu {
+      font-size: 32px;
+      display: block;
+      color:#fff;
+    }
+}

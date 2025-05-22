@@ -1,0 +1,51 @@
+@media (max-width: 768px) {
+
+    .contentArea {
+        padding: 24px 16px;
+    }
+
+    .mainHeading {
+        font-size: 20px;
+        padding: 0 16px;
+    }
+
+    .subHeading {
+        font-size: 14px;
+    }
+}
+
+.contentArea {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 48px 24px;
+}
+
+.mainHeading {
+    color: #000;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 2.56px;
+    text-align: center;
+}
+
+.subHeading {
+    color: #000;
+    font-size: 16px;
+    letter-spacing: 1.28px;
+    text-align: center;
+}
+
+.ctaButton {
+    padding: 8px 16px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 1.6px;
+    border-radius: 16px;
+    border: 2px solid #4724f6;
+    cursor: pointer;
+    background-color: #4724f6;
+}

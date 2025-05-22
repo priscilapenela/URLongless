@@ -1,0 +1,45 @@
+@media (min-width: 768px) {
+  .mobileMenu {
+    display: none;
+}
+}
+
+@media (max-width: 991px) {
+  .mobileMenu {
+    display: block;
+  }
+}
+
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 14px;
+  gap: 10px;
+  background-color: #4724f6;
+}
+  
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 24px;
+  padding: 10px 16px;
+  width: 324px;
+  background-color: rgba(254, 254, 254, 0.26);
+  color: #fefefe;
+  font-size: 16px;
+}
+
+.userProfile {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fefefe;
+  font-size: 16px;
+  padding: 8px 3px;
+}
+  
+.userName {
+  color: #fefefe;
+}

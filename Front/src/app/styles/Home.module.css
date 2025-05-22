@@ -1,0 +1,141 @@
+.mainContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 160px;
+    gap: 80px;
+    width: -webkit-fill-available;
+    background-image: url('/img/fondo5.png'); 
+    background-size: cover;
+    background-position: center;
+}
+  
+@media (max-width: 991px) {
+    .mainContent {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+}
+  
+@media (max-width: 640px) {
+    .mainContent {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+}
+  
+.heroTitle {
+    color: #fff;
+    font-size: 64px;
+    font-weight: 900;
+    text-align: center;
+}
+  
+@media (max-width: 991px) {
+    .heroTitle {
+      font-size: 48px;
+    }
+}
+  
+@media (max-width: 640px) {
+    .heroTitle {
+      font-size: 36px;
+    }
+}
+  
+.heroDescription {
+    color: #fff;
+    font-size: 24px;
+    letter-spacing: 1.92px;
+    text-align: center;
+}
+  
+@media (max-width: 991px) {
+    .heroDescription {
+      font-size: 20px;
+    }
+}
+  
+@media (max-width: 640px) {
+    .heroDescription {
+      font-size: 16px;
+    }
+}
+  
+.featuresContainer {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-direction: column;
+}
+  
+@media (max-width: 640px) {
+    .featuresContainer {
+      flex-direction: column;
+    }
+}
+
+.buttons {
+    display: flex;
+    justify-content: space-evenly;
+}
+  
+.featureCard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #4724f6;
+    padding: 11px 16px;
+    border-radius: 16px;
+    font-size: xx-large;
+    font-weight: bold;
+    color: #fefefe;
+}
+
+.featureCardActive {
+  background-color: #fefefe; /* azul */
+  color: #4724f6;
+}
+
+.benefitsSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+  
+.benefitsTitle {
+    color: #fff;
+    font-size: 32px;
+    font-weight: 900;
+    text-align: center;
+}
+  
+.benefitsList {
+    display: flex;
+    align-items: center;
+    gap: 64px;
+}
+  
+@media (max-width: 991px) {
+    .benefitsList {
+      flex-direction: column;
+      gap: 32px;
+    }
+}
+  
+.benefitItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: x-large;
+    color: #4724f6;
+}
+  
+.benefitText {
+    color: #fff;
+    font-family: Roboto;
+    font-size: 16px;
+}
+
+  

@@ -1,0 +1,63 @@
+.sidebar {
+  width: 258px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  border-right: 1px solid #858a8e;
+  background-color: #fff;
+  height: -webkit-fill-available;
+}
+  
+.sidebarHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+  
+.logo {
+  color: #4724f6;
+  font-size: 36px;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+  
+.newButton {
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 1.28px;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  text-align: center;
+  background-color: #4724f6;
+  border: none;
+  cursor: pointer;
+}
+  
+.navMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 8px;
+  border-top: 1px solid rgba(134, 139, 143, 0.5);
+  border-bottom: 1px solid rgba(134, 139, 143, 0.5);
+}
+  
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 8px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1.28px;
+  text-decoration: none;
+  color: #000;
+  font-size:larger;
+}
