@@ -6,7 +6,7 @@ import Image from "next/image"
 
 export default function Form() {
    const [url, setUrl] = useState('');
-   const [shortUrl, setShortUrl] = useState('');
+   const [qrImageUrl, setQrImageUrl] = useState(null);
    const [loading, setLoading] = useState(false);
    const [error, setError] = useState('');
 
@@ -17,30 +17,36 @@ export default function Form() {
       setError('La URL no puede estar vacía.');
       return;
     }
-
+    if (qrImageUrl) {
+      URL.revokeObjectURL(qrImageUrl); // limpiamos el anterior
+    }
+    
     setLoading(true);
     setError('');
-    setShortUrl('');
 
     try {
-      const res = await fetch('https://tu-api.execute-api.region.amazonaws.com/prod/shorten', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }), // Enviamos la URL al backend
-      });
+    const res = await fetch("http://localhost:8000/generate_qr", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ target_url : url }), // o la URL que querés convertir
+  });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al acortar la URL.');
+  if (!res.ok) {
+        throw new Error("No se pudo generar el código QR.");
       }
 
-      setShortUrl(data.shortUrl); // Guardamos la URL corta
-     } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false); // Sea lo que sea, apagamos el estado de carga
-    }
+  const blob = await res.blob(); // obtenemos la imagen
+  const objectUrl = URL.createObjectURL(blob); // la convertimos a URL utilizable
+
+  setQrImageUrl(objectUrl); // la guardamos en el estado
+  } catch (err) {
+    console.error("Error generando el QR:", err);
+    setError('Error generando el código QR.');
+  } finally {
+    setLoading(false);
+  }
   };
  return (
     <>
@@ -64,8 +70,24 @@ export default function Form() {
       </form>
       {error && <p className="text-red-600 mt-2">{error}</p>}
      </div>
-     <Image src="/img/qrCode.png" alt="codigo qr" width={326} height={406} style={{ borderRadius: '40px' }}/>
-   </section>
-   </>
-  );
-}
+     {qrImageUrl ? (
+      <div>
+        <p>Código QR generado:</p>
+        <img
+        src={qrImageUrl}
+        alt="QR Code"
+        style={{ width: "180px", height: "auto", borderRadius: "20px" }}
+        />
+      </div>
+      ) : (
+      <Image
+      src="/img/qrCode.png"
+      alt="código qr por defecto"
+      width={326}
+      height={406}
+      style={{ borderRadius: '40px' }}
+      />
+      )}
+    </section>
+  </>
+);}
