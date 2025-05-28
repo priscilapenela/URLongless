@@ -1,8 +1,11 @@
 .minFormContainer{
+    display: flex;
+    flex-direction: column;
     background-color: white;
     border-radius: 16px;
     padding: 20px;
     width: 746px;
+    gap: 20px;
 }
 
 .title {
@@ -95,4 +98,29 @@
 .toggleButtonActive {
   background-color: white;
   color: #4724f6;
+}
+
+.formDisplayShort {
+    display: flex; 
+    flex-direction: row;
+    align-items: center;
+    gap:5px
+}
+
+.displayShort{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.displayCheck{
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+}
+
+.displayInput{
+    display: flex;
+    gap: 5px;
+    flex: 1;
 }

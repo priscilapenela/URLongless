@@ -1,8 +1,8 @@
 .formSection {
     display: flex;
     flex-direction: column;
+    gap: 20px;
     padding: 80px 53px;
-    gap: 80px;
     background-color: #ffffffcc;
     border-radius: 40px;
     box-shadow: 0px 4px 8px 4px rgba(0, 0, 0, 0.25);
@@ -19,6 +19,12 @@
     .formSection {
       padding: 20px;
     }
+}
+
+.formDisplay {
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
 }
   
 .formHeader {
@@ -84,4 +90,11 @@
     width: fit-content;
     color: #fff;
     font-weight: bold;
+}
+
+.formDisplayShort {
+    display: flex; 
+    flex-direction: row;
+    align-items: center;
+    gap:5px
 }

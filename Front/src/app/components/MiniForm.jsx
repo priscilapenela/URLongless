@@ -10,6 +10,8 @@ export default function FormSwitcher() {
   const [shortUrl, setShortUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [customKey, setCustomKey] = useState('');
+  const [showCustomKey, setShowCustomKey] = useState(false);
 
    const handleSubmit = async (e) => {
     e.preventDefault(); // Previene que el formulario recargue la página
@@ -24,19 +26,27 @@ export default function FormSwitcher() {
     setShortUrl('');
 
     try {
-      const res = await fetch('https://tu-api.execute-api.region.amazonaws.com/prod/shorten', {
+      const res = await fetch('http://localhost:8000/url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }), // Enviamos la URL al backend
+        body: JSON.stringify({
+           target_url: url,
+           custom_key: showCustomKey && customKey.trim() !== '' ? customKey.trim() : null,
+        }), // Enviamos la URL al backend
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Error al acortar la URL.');
+        const message = data?.detail || 'Error al acortar la URL.';
+        if (message === "Custom key already in use.") {
+          throw new Error('La clave personalizada ya está en uso.');
+        } else {
+          throw new Error(message);
+        }
       }
 
-      setShortUrl(data.shortUrl); // Guardamos la URL corta
+      setShortUrl(data.url); // Guardamos la URL corta
      } catch (err) {
       setError(err.message);
     } finally {
@@ -66,27 +76,50 @@ export default function FormSwitcher() {
       </div>
     </div>
       {activeForm === 'short' ? (
-        <div>
+        <div className={styles.displayShort}>
           <form className={styles.urlForm} onSubmit={handleSubmit}>
           <p>Puedes crear 5 links cortos más este mes.</p>  
           <div className={styles.inputContainer2}>
              <label htmlFor="long-url" className={styles.inputLabel}>Introducir tu URL de destino.</label>
              <div className={styles.inputContainer}>
+            <div className={styles.displayInput}>
              <div className={styles.inputWrapper}>
                  <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} id="long-url" placeholder="http://example.com/my-long-url" className={styles.urlInput} />
              </div>
+             {showCustomKey && (
+              <div className={styles.inputWrapper}>
+                <input
+                type="text"
+                value={customKey}
+                onChange={(e) => setCustomKey(e.target.value)}
+                id="custom-key"
+                placeholder="e.g. brand name"
+                className={styles.urlInput}
+                />
+             </div>
+          )}
+          </div>
              <div className={styles.buttonContainer}>
              <button type="submit" disabled={loading} className={styles.submitButton}>
              <span className={styles.buttonText}>Crea tu Link</span>
              </button>
              </div>
              </div>
+              <label className={styles.displayCheck}>
+                <input
+                type="checkbox"
+                name="miCheck"
+                onChange={() => setShowCustomKey((prev) => !prev)}
+                checked={showCustomKey}
+                />
+                {showCustomKey ? 'Ocultar personalización' : 'Personalizar'}
+              </label>
           </div>
           </form>
           {error && <p className="text-red-600 mt-2">{error}</p>}
 
           {shortUrl && (
-             <div className="mt-4 p-3 bg-gray-100 border rounded">
+             <div className={styles.formDisplayShort}>
                  <p className="text-sm text-gray-700">Tu URL acortada:</p>
                  <a href={shortUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">
                      {shortUrl}

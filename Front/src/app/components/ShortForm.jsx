@@ -5,45 +5,62 @@ import { useState } from 'react';
 
 export default function Form() {
    const [url, setUrl] = useState('');
-   const [shortUrl, setShortUrl] = useState('');
+   const [short_Url, setShortUrl] = useState('');
    const [loading, setLoading] = useState(false);
    const [error, setError] = useState('');
 
-   const handleSubmit = async (e) => {
-    e.preventDefault(); // Previene que el formulario recargue la página
+  async function handleSubmit(e){
+    e.preventDefault();
 
     if (!url.trim()) {
       setError('La URL no puede estar vacía.');
       return;
     }
 
-    setLoading(true);
-    setError('');
-    setShortUrl('');
-
-    try {
-      const res = await fetch('https://tu-api.execute-api.region.amazonaws.com/prod/shorten', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }), // Enviamos la URL al backend
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Error al acortar la URL.');
+    function isValidHttpUrl() {
+      try {
+        const newUrl = new URL(url);
+        return newUrl.protocol === 'http:' || newUrl.protocol === 'https:';
+      } catch (err) {
+        return false;
       }
-
-      setShortUrl(data.shortUrl); // Guardamos la URL corta
-     } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false); // Sea lo que sea, apagamos el estado de carga
     }
+
+    if(isValidHttpUrl()){
+      setLoading(true);
+      setError('');
+      setShortUrl('');
+      try {
+        const res = await fetch('http://localhost:8000/url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_url: url, custom_key: null }), // Enviamos la URL al backend
+        });
+        
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (data.detail === "Custom key already in use.") {
+            throw new Error('La clave personalizada ya está en uso.');
+          }else{throw new Error('Error al acortar la URL.');}
+        }
+        
+        setShortUrl(data.url); // Guardamos la URL corta
+        } catch (err) {
+        setError(err.message);
+        } finally {
+          setLoading(false); // Sea lo que sea, apagamos el estado de carga
+        }
+    }else{
+      setError('La URL no es válida')
+      return;
+    }
+
   };
  return (
     <>
     <section className={styles.formSection}>
+    <div className={styles.formDisplay}>
       <div className={styles.formHeader}>
          <h2 className={styles.formTitle}>Acortar un enlace largo</h2>
          <p className={styles.formSubtitle}>No se requiere tarjeta de crédito.</p>
@@ -60,19 +77,20 @@ export default function Form() {
              <BsArrowRight />
           </button>
       </form>
+    </div>
       
       {error && <p className="text-red-600 mt-2">{error}</p>}
 
-      {shortUrl && (
-        <div className="mt-4 p-3 bg-gray-100 border rounded">
+      {short_Url && (
+        <div className={styles.formDisplayShort}>
           <p className="text-sm text-gray-700">Tu URL acortada:</p>
           <a
-            href={shortUrl}
+            href={short_Url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-600 underline break-all"
           >
-            {shortUrl}
+            {short_Url}
           </a>
         </div>
       )}
