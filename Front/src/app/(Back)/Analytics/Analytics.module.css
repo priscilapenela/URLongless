@@ -1,0 +1,129 @@
+.conteiner{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: -webkit-fill-available;
+}
+
+.pageHeader {
+    background-color: rgba(255, 255, 255, 0);
+    display: flex;
+    margin-top: 16px;
+    width: 100%;
+    padding: 10px 0px;
+    align-items: center;
+    gap: 40px 100px;
+    overflow: hidden;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+  
+.pageTitle {
+    color: rgba(0, 0, 0, 1);
+    font-size: 32px;
+    letter-spacing: 2.56px;
+    align-self: stretch;
+    margin: auto 0;
+    font-weight: bold;
+}
+  
+.addModuleButton {
+    border-radius: 16px;
+    background-color: rgba(71, 36, 246, 1);
+    align-self: stretch;
+    display: flex;
+    margin: auto 0;
+    min-height: 32px;
+    padding: 4px 8px;
+    align-items: center;
+    gap: 7px;
+    overflow: hidden;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 1);
+    justify-content: flex-start;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.addModuleButton:hover{
+    background-color: rgb(63, 32, 218);
+}
+  
+.addIcon {
+    aspect-ratio: 1;
+    object-fit: contain;
+    object-position: center;
+    width: 24px;
+    align-self: stretch;
+    margin: auto 0;
+    flex-shrink: 0;
+}
+  
+.filterSection {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+    display: flex;
+    padding: 20px 0px;
+    align-items: center;
+    gap: 24px;
+    font-size: 16px;
+    color: #000000;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: -webkit-fill-available;
+}
+  
+.dateFilter {
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.38);
+    padding: 16px;
+    align-self: stretch;
+    margin: auto 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+  
+.filterIcon,
+.separatorIcon {
+    aspect-ratio: 1;
+    object-fit: contain;
+    object-position: center;
+    width: 24px;
+    align-self: stretch;
+    margin: auto 0;
+    flex-shrink: 0;
+}
+  
+.dateValue {
+    align-self: stretch;
+    margin: auto 0;
+    font-weight: 700;
+}
+  
+.additionalFilter {
+    font-weight: 700;
+    line-height: 1;
+}
+  
+.filterInput {
+    align-items: center;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.38);
+    display:inline-flex;
+    padding: 16px;
+    gap: 12px;
+    justify-content: flex-start;
+}
+  
+.filterPlaceholder {
+    align-self: stretch;
+    margin: auto 0;
+}
+  
+.filterDescription {
+    font-size: 16px;
+    align-self: stretch;
+    margin: auto 0;
+}

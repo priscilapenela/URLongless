@@ -9,12 +9,22 @@ from .config import get_settings
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
+from .models import ClickLog 
+from datetime import datetime
 import segno
 import os
 import uuid
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # o ["*"] para permitir todo durante desarrollo
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class QRRequest(BaseModel):
     target_url: str  # debe coincidir con tu frontend
@@ -97,20 +107,32 @@ def get_all_urls(db: Session = Depends(get_db)):
 
 @app.get("/{url_key}")
 def forward_to_target_url(
-        url_key: str,
-        request: Request,
-        db: Session = Depends(get_db)
-    ):
-    if db_url := crud.get_db_url_by_key(db=db, url_key=url_key):
-        crud.update_db_clicks(db=db, db_url=db_url)
-        return RedirectResponse(db_url.target_url)
-    else:
+    url_key: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    db_url = crud.get_db_url_by_key(db=db, url_key=url_key)
+    if not db_url:
         raise_not_found(request)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # o ["*"] para permitir todo durante desarrollo
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # Usás tu función actual para aumentar el contador
+    crud.update_db_clicks(db=db, db_url=db_url)
+
+    # 🔍 Extraer datos de la visita
+    user_agent = request.headers.get("user-agent", "")
+    referer = request.headers.get("referer", "")
+    ip_address = request.client.host
+
+    # 📝 Crear un nuevo registro del clic
+    click_log = ClickLog(
+        url_id=db_url.id,
+        timestamp=datetime.utcnow(),
+        user_agent=user_agent,
+        referer=referer,
+        ip_address=ip_address,
+    )
+    db.add(click_log)
+    db.commit()
+
+    return RedirectResponse(db_url.target_url)
+

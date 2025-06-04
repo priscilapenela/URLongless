@@ -12,3 +12,10 @@ body {
   
 }
 
+.grid-stack-item-content {
+  background-color: #fafafa;
+  padding: 8px;
+  border-radius: 8px;
+  text-align: center;
+}
+
