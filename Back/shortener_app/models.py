@@ -8,7 +8,7 @@ class ClickLog(Base):
 
     id = Column(Integer, primary_key=True)
     url_id = Column(Integer, ForeignKey("urls.id"))
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, index=True, default=datetime.utcnow)
     ip_address = Column(String)
     user_agent = Column(String)
     referer = Column(String)
@@ -28,3 +28,5 @@ class URL(Base):
     custom_name = Column(String, nullable=True)
 
     click_logs = relationship("ClickLog", backref="url")
+    click_logs = relationship("ClickLog", backref="url", cascade="all, delete")
+
