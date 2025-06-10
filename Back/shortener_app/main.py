@@ -7,10 +7,11 @@ from starlette.datastructures import URL
 from .config import get_settings
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List
-from .models import ClickLog 
+from typing import List, Optional
+from .models import ClickLog, URL as URLModel # Importa URL y lo renombra para evitar conflicto
 from datetime import datetime
 from sqlalchemy import func
+import json
 import requests
 import reverse_geocoder as rg
 import segno
@@ -23,14 +24,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # o ["*"] para permitir todo durante desarrollo
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Asegura ambos orígenes si el frontend varía
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 class QRRequest(BaseModel):
-    target_url: str  # debe coincidir con tu frontend
+    target_url: str
 
 def get_location_from_ip(ip):
     try:
@@ -38,7 +39,7 @@ def get_location_from_ip(ip):
         if response.status_code == 200:
             data = response.json()
             if "loc" in data:
-                return data["loc"]  # ejemplo: "34.0522,-118.2437"
+                return data["loc"]
     except Exception as e:
         print("Error al obtener localización:", e)
     return None
@@ -114,14 +115,36 @@ def delete_url(
     else:
         raise_not_found(request)
 
-@router.get("/analytics/clicks_per_day")
-def clicks_per_day(db: Session = Depends(get_db)):
-    result = (
-        db.query(func.date(ClickLog.timestamp), func.count())
-        .group_by(func.date(ClickLog.timestamp))
-        .all()
-    )
-    return [{"date": str(r[0]), "clicks": r[1]} for r in result]
+@app.get("/analytics/referers")
+def referrers_analytics(
+    db: Session = Depends(get_db),
+    start: datetime = Query(None), # Opcional: para filtrar por fecha
+    end: datetime = Query(None)    # Opcional: para filtrar por fecha
+):
+    query = db.query(
+        models.ClickLog.referer,
+        func.count(models.ClickLog.id).label("total_clicks")
+    ).group_by(models.ClickLog.referer).order_by(func.count(models.ClickLog.id).desc())
+
+    if start:
+        query = query.filter(models.ClickLog.timestamp >= start)
+    if end:
+        query = query.filter(models.ClickLog.timestamp <= end)
+
+    results = query.all()
+
+    # Formatear los resultados para que se ajusten al formato que espera BarChartVertical
+    # BarChartVertical espera [{ key: string, value: number }]
+    formatted_results = []
+    for referer, total_clicks in results:
+        # Puedes manejar referer nulo o vacío si lo deseas
+        display_referer = referer if referer else "Directo / Desconocido"
+        formatted_results.append({
+            "key": display_referer,
+            "value": total_clicks
+        })
+
+    return formatted_results
 
 @app.get("/analytics/clicks_over_time")
 def clicks_over_time(
@@ -152,6 +175,63 @@ def clicks_over_time(
 
     return [{"name": key, "color": "#8b5cf6", "data": values} for key, values in grouped.items()]
 
+@app.get("/analytics/geo_clicks")
+def geo_clicks_analytics(
+    db: Session = Depends(get_db),
+    start: Optional[datetime] = Query(None),
+    end: Optional[datetime] = Query(None)
+):
+    query = db.query(
+        models.ClickLog,
+        models.URL.key.label("short_code")
+    ).join(models.URL, models.ClickLog.url_id == models.URL.id)
+
+    if start:
+        query = query.filter(models.ClickLog.timestamp >= start)
+    if end:
+        query = query.filter(models.ClickLog.timestamp <= end)
+
+    results = query.all()
+
+    country_data = {}
+
+    for log_entry, short_code_val in results:
+        country_code = "Unknown"
+        if log_entry.geo_info:
+            # ¡CAMBIO AQUÍ! No uses json.loads() si ya es un diccionario.
+            # Asignamos directamente porque el error indica que ya es un dict.
+            geo_data = log_entry.geo_info
+
+            # Aseguramos que sea un diccionario antes de acceder a sus claves
+            if isinstance(geo_data, dict):
+                if 'country_code' in geo_data and geo_data['country_code']:
+                    country_code = geo_data['country_code']
+                elif 'country' in geo_data and geo_data['country']:
+                    country_code = geo_data['country']
+            # else: Si por alguna razón no es un dict, se podría manejar aquí
+            # por ejemplo, logueando un error o asumiendo "Unknown"
+
+        clicks_count = log_entry.clicks if hasattr(log_entry, 'clicks') and log_entry.clicks is not None else 1
+
+        if country_code not in country_data:
+            country_data[country_code] = {"total_clicks": 0, "unique_links": set()}
+
+        country_data[country_code]["total_clicks"] += clicks_count
+        country_data[country_code]["unique_links"].add(short_code_val)
+
+    formatted_results = [
+        {
+            "country": country,
+            "total_clicks": data["total_clicks"],
+            "unique_links_count": len(data["unique_links"])
+        }
+        for country, data in country_data.items()
+    ]
+
+    formatted_results.sort(key=lambda x: x['total_clicks'], reverse=True)
+
+    return formatted_results
+
 @app.get("/urls", response_model=List[schemas.URLList])
 def get_all_urls(db: Session = Depends(get_db)):
     return db.query(models.URL).all()
@@ -179,14 +259,13 @@ def forward_to_target_url(
     referer = request.headers.get("referer", "")
     ip_address = request.headers.get("X-Forwarded-For", request.client.host)
 
-    # NUEVO: obtener coordenadas y reverse geocoding
     loc = get_location_from_ip(ip_address)
-    geo_info = None
+    geo_info_data = None # Renombrado para evitar conflicto con el módulo geo_info
     if loc:
         try:
             lat, lon = map(float, loc.split(","))
             location = rg.search((lat, lon))[0]
-            geo_info = {
+            geo_info_data = {
                 "loc": loc,
                 "city": location.get("name"),
                 "state": location.get("admin1"),
@@ -195,17 +274,15 @@ def forward_to_target_url(
         except Exception as e:
             print("Error procesando coordenadas:", e)
 
-    # Guardar clic con geo_info
     click_log = ClickLog(
         url_id=db_url.id,
         timestamp=datetime.utcnow(),
         user_agent=user_agent,
         referer=referer,
         ip_address=ip_address,
-        geo_info=geo_info
+        geo_info=json.dumps(geo_info_data) if geo_info_data else None # Guardar como string JSON
     )
     db.add(click_log)
     db.commit()
 
     return RedirectResponse(db_url.target_url)
-
