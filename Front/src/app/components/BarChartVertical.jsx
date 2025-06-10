@@ -1,3 +1,4 @@
+// app/components/BarChartVertical.jsx
 import React from "react";
 import { scaleBand, scaleLinear, max } from "d3";
 
@@ -123,5 +124,3 @@ export function BarChartVertical({ data }) {
     </div>
   );
 }
-
-

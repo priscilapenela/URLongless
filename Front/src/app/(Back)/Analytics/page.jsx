@@ -1,4 +1,4 @@
-// app/(Back)/Analytics/page.jsx
+// Front/src/app/(Back)/Analytics/page.jsx
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { GridStack } from "gridstack";
@@ -9,24 +9,25 @@ import { FaRegCalendar } from "react-icons/fa";
 import { IoIosArrowForward } from "react-icons/io";
 import { RxCrossCircled } from "react-icons/rx";
 import { TbAdjustmentsFilled } from "react-icons/tb";
-import WidgetChart from '../../components/WidgetChart'; // Asegúrate de que la ruta sea correcta
+import ReactDOM from "react-dom/client";
+import WidgetChart from '../../components/WidgetChart';
 
 export default function AnalyticsPage() {
   const gridRef = useRef(null);
   const gridInstance = useRef(null);
-  // Mantener un estado para los widgets
   const [widgets, setWidgets] = useState([
-    { id: "widget-1", chartType: "LineChartMultiple", dataType: "clicks_over_time", w: 3, h: 3 },
-    // Puedes añadir más widgets iniciales aquí
+    { id: "widget-1", chartType: "LineChartMultiple", dataType: "clicks_over_time", w: 3, h: 3, x: 0, y: 0 },
+    { id: "widget-2", chartType: "BarChartVertical", dataType: "referers_analytics", w: 3, h: 3, x: 3, y: 0 },
+    { id: "widget-3", chartType: "BubbleChart", dataType: "geo_clicks_bubble", w: 4, h: 4, x: 0, y: 3 },
   ]);
-  const nextWidgetId = useRef(widgets.length + 1); // Para generar IDs únicos
+  const nextWidgetId = useRef(widgets.length + 1);
 
   const addWidget = useCallback(() => {
     const newWidgetId = `widget-${nextWidgetId.current++}`;
     const newWidget = {
       id: newWidgetId,
-      chartType: "LineChartMultiple", // Por defecto, se puede cambiar luego
-      dataType: "clicks_over_time", // Por defecto, se puede cambiar luego
+      chartType: "BarChartVertical",
+      dataType: "referers_analytics",
       w: 3,
       h: 3,
     };
@@ -34,38 +35,42 @@ export default function AnalyticsPage() {
   }, []);
 
   const removeWidget = useCallback((idToRemove) => {
-    if (gridInstance.current) {
-        const item = gridInstance.current.engine.nodes.find(node => node.id === idToRemove);
-        if (item) {
-            gridInstance.current.removeWidget(item.el); // Elimina del GridStack DOM y gestión
-        }
-    }
     setWidgets((prevWidgets) => prevWidgets.filter((w) => w.id !== idToRemove));
   }, []);
 
+  // Effect 1: Initialize GridStack and its core listeners ONCE
   useEffect(() => {
     if (gridRef.current && !gridInstance.current) {
       gridInstance.current = GridStack.init(
         {
-          cellHeight: "70px", // Ajusta según tu necesidad para el tamaño de las celdas
+          cellHeight: "70px",
           margin: 10,
           float: true,
-          // Puedes añadir opciones de Drag-and-drop aquí si quieres algo específico
         },
         gridRef.current
       );
 
-      // Event listener para cuando un widget es removido (ej. desde el botón de cruz)
+      // Listen for GridStack's internal 'removed' event (e.g., dragged out of grid)
       gridInstance.current.on('removed', (event, items) => {
         items.forEach(item => {
-            // Elimina del estado de React si no se hizo ya a través de removeWidget
-            if (widgets.some(w => w.id === item.id)) {
-                setWidgets(prevWidgets => prevWidgets.filter(w => w.id !== item.id));
-            }
+            setWidgets(prevWidgets => {
+                const updated = prevWidgets.filter(w => w.id !== item.id);
+                // When GridStack removes an item via drag, we need to unmount React root
+                if (item.el && item.el.__reactRoot) {
+                    const rootToUnmount = item.el.__reactRoot;
+                    delete item.el.__reactRoot; // Clear the reference immediately
+                    setTimeout(() => { // Defer unmount
+                        if (rootToUnmount) {
+                            rootToUnmount.unmount();
+                        }
+                    }, 0);
+                }
+                return updated;
+            });
         });
       });
 
-      // Si quieres guardar la posición después de arrastrar/redimensionar
+      // Listen for GridStack's 'change' event (drag/resize)
       gridInstance.current.on('change', (event, items) => {
         setWidgets(prevWidgets => {
           const updatedWidgets = [...prevWidgets];
@@ -86,68 +91,94 @@ export default function AnalyticsPage() {
       });
     }
 
-    // Limpieza al desmontar el componente
+    // Cleanup: Destroy GridStack instance when component unmounts
     return () => {
       if (gridInstance.current) {
+        const nodesToCleanup = [...gridInstance.current.engine.nodes];
+        nodesToCleanup.forEach(node => {
+          if (node.el) {
+            // Unmount the React root first
+            if (node.el.__reactRoot) {
+              const rootToUnmount = node.el.__reactRoot;
+              delete node.el.__reactRoot; // Clear the reference immediately
+              setTimeout(() => { // Defer unmount
+                  if (rootToUnmount) {
+                      rootToUnmount.unmount();
+                  }
+              }, 0);
+            }
+            gridInstance.current.removeWidget(node.el, false);
+          }
+        });
         gridInstance.current.destroy();
         gridInstance.current = null;
       }
     };
-  }, []); // Solo se ejecuta una vez al montar
+  }, []); // Empty dependency array: runs only once on mount
 
-  // Sincroniza los widgets del estado con GridStack
+  // Effect 2: Synchronize React state `widgets` with GridStack's DOM and mounted components
   useEffect(() => {
-    if (gridInstance.current) {
-      const currentGridNodes = gridInstance.current.engine.nodes.map(node => node.id);
-      const widgetsInState = widgets.map(w => w.id);
-
-      // Remover widgets del GridStack que ya no están en el estado
-      currentGridNodes.forEach(nodeId => {
-        if (!widgetsInState.includes(nodeId)) {
-          const item = gridInstance.current.engine.nodes.find(node => node.id === nodeId);
-          if (item) {
-            gridInstance.current.removeWidget(item.el, false); // false para no emitir evento 'removed'
-          }
-        }
-      });
-
-      // Añadir o actualizar widgets en GridStack
-      widgets.forEach(widget => {
-        const existingNode = gridInstance.current.engine.nodes.find(node => node.id === widget.id);
-        if (!existingNode) {
-          // Crear el elemento DOM y añadirlo a GridStack
-          const el = document.createElement("div");
-          el.classList.add("grid-stack-item");
-          el.setAttribute("gs-id", widget.id); // Importante para GridStack
-          el.setAttribute("gs-w", String(widget.w));
-          el.setAttribute("gs-h", String(widget.h));
-          if (widget.x !== undefined) el.setAttribute("gs-x", String(widget.x));
-          if (widget.y !== undefined) el.setAttribute("gs-y", String(widget.y));
-
-          const content = document.createElement("div");
-          content.classList.add("grid-stack-item-content");
-          el.appendChild(content);
-
-          // Usar gridRef.current para añadir al DOM
-          gridRef.current.appendChild(el);
-          gridInstance.current.makeWidget(el);
-
-          // Renderizar el componente React
-          // Usamos una ref para almacenar los roots y limpiarlos al remover el widget
-          el.__reactRoot = ReactDOM.createRoot(content);
-          el.__reactRoot.render(<WidgetChart {...widget} onRemove={removeWidget} />);
-
-        } else {
-          // Si el widget ya existe, solo actualiza las props si es necesario
-          // GridStack manejará las posiciones y tamaños si se actualizan en el estado
-          // pero el renderizado de React ya se encargará de las props internas
-          // No necesitamos re-renderizar el root aquí si las props cambian,
-          // React ya lo gestiona.
-          // Solo si cambias la forma en que se construye el elemento DOM de GridStack.
-        }
-      });
+    if (!gridInstance.current) {
+        return;
     }
-  }, [widgets, removeWidget]); // Se ejecuta cuando 'widgets' cambia
+
+    const currentGridNodes = gridInstance.current.engine.nodes.map(node => ({
+        id: node.id,
+        el: node.el // Keep reference to the DOM element
+    }));
+    const widgetsInState = widgets.map(w => w.id);
+
+    // Phase 1: Remove widgets from GridStack (and DOM) that are no longer in React state
+    currentGridNodes.forEach(node => {
+        if (!widgetsInState.includes(node.id)) {
+            if (node.el) {
+                // If a React root exists for this GridStack item, unmount it.
+                // Defer the unmount call using setTimeout to avoid "synchronously unmount" error.
+                if (node.el.__reactRoot) {
+                    const rootToUnmount = node.el.__reactRoot;
+                    delete node.el.__reactRoot; // Clear the reference immediately
+
+                    setTimeout(() => {
+                        if (rootToUnmount) {
+                            rootToUnmount.unmount();
+                        }
+                    }, 0);
+                }
+                gridInstance.current.removeWidget(node.el, false);
+            }
+        }
+    });
+
+    // Phase 2: Add or update widgets in GridStack based on React state
+    widgets.forEach(widget => {
+      const existingNode = gridInstance.current.engine.nodes.find(node => node.id === widget.id);
+
+      if (!existingNode) {
+        const el = document.createElement("div");
+        el.classList.add("grid-stack-item");
+        el.setAttribute("gs-id", widget.id);
+        el.setAttribute("gs-w", String(widget.w));
+        el.setAttribute("gs-h", String(widget.h));
+        if (widget.x !== undefined) el.setAttribute("gs-x", String(widget.x));
+        if (widget.y !== undefined) el.setAttribute("gs-y", String(widget.y));
+
+        const content = document.createElement("div");
+        content.classList.add("grid-stack-item-content");
+        el.appendChild(content);
+
+        gridRef.current.appendChild(el);
+        gridInstance.current.makeWidget(el);
+
+        el.__reactRoot = ReactDOM.createRoot(content);
+        el.__reactRoot.render(<WidgetChart {...widget} onRemove={removeWidget} />);
+
+      } else {
+        if (existingNode.el && existingNode.el.__reactRoot) {
+          existingNode.el.__reactRoot.render(<WidgetChart {...widget} onRemove={removeWidget} />);
+        }
+      }
+    });
+  }, [widgets, removeWidget]);
 
   return (
     <main className="p-6">
@@ -178,9 +209,8 @@ export default function AnalyticsPage() {
         </div>
       </div>
       <div>
-        {/* El div grid-stack ahora solo contendrá los elementos gestionados dinámicamente */}
         <div className="grid-stack" ref={gridRef}>
-          {/* Los widgets se añadirán y gestionarán aquí por el useEffect */}
+          {/* GridStack will manage children directly */}
         </div>
       </div>
     </main>
