@@ -1,4 +1,4 @@
-// app/components/LineChartMultiple.jsx (Tu código original con D3.js)
+// app/components/LineChartMultiple.jsx
 "use client";
 import React from "react";
 import {
@@ -17,11 +17,26 @@ import {
  * ]
  */
 export default function LineChartMultiple({ dataSeries }) {
+  // Añade este console.log para ver los datos que LineChartMultiple recibe
+  console.log("LineChartMultiple - Received dataSeries:", dataSeries);
+
   if (!Array.isArray(dataSeries) || dataSeries.length === 0) {
     return <div>No hay datos para mostrar.</div>;
   }
-  const allDates = dataSeries.flatMap((serie) => serie.data.map((d) => d.date));
-  const allValues = dataSeries.flatMap((serie) => serie.data.map((d) => d.value));
+
+  // Verifica si las series tienen datos antes de intentar mapear
+  const allDates = dataSeries.flatMap((serie) =>
+    Array.isArray(serie.data) ? serie.data.map((d) => d.date) : []
+  );
+  const allValues = dataSeries.flatMap((serie) =>
+    Array.isArray(serie.data) ? serie.data.map((d) => d.value) : []
+  );
+
+  // Asegúrate de que allDates y allValues no estén vacíos antes de calcular dominios
+  if (allDates.length === 0 || allValues.length === 0) {
+    console.warn("LineChartMultiple - No dates or values found after flatMap.");
+    return <div>No hay datos para mostrar (después de procesamiento interno).</div>;
+  }
 
   const xScale = scaleTime()
     .domain([Math.min(...allDates), Math.max(...allDates)])
@@ -35,6 +50,8 @@ export default function LineChartMultiple({ dataSeries }) {
     .x((d) => xScale(d.date))
     .y((d) => yScale(d.value))
     .curve(curveMonotoneX);
+
+  console.log("LineChartMultiple - Scales calculated. xScale domain:", xScale.domain(), "yScale domain:", yScale.domain());
 
   return (
     <div
@@ -88,6 +105,10 @@ export default function LineChartMultiple({ dataSeries }) {
 
           {/* Líneas y puntos por serie */}
           {dataSeries.map((serie, idx) => {
+            // Asegúrate de que serie.data existe y es un array antes de pasar a 'line'
+            if (!Array.isArray(serie.data) || serie.data.length === 0) {
+              return null; // No renderiza la serie si no tiene datos válidos
+            }
             const path = line(serie.data);
             if (!path) return null;
 
@@ -116,7 +137,8 @@ export default function LineChartMultiple({ dataSeries }) {
 
         {/* Eje X */}
         <div className="translate-y-2">
-          {dataSeries[0].data.map((point, i) => (
+          {/* Asegúrate de que dataSeries[0] y dataSeries[0].data existan */}
+          {dataSeries[0]?.data && dataSeries[0].data.map((point, i) => (
             <div
               key={i}
               style={{

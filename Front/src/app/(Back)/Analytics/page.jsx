@@ -12,14 +12,31 @@ import { TbAdjustmentsFilled } from "react-icons/tb";
 import ReactDOM from "react-dom/client";
 import WidgetChart from '../../components/WidgetChart';
 
+// Importar react-datepicker y sus estilos
+import DatePicker, { registerLocale } from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+// Importar el locale español
+import es from 'date-fns/locale/es';
+
+// Registrar el locale español para react-datepicker
+registerLocale('es', es);
+
 export default function AnalyticsPage() {
   const gridRef = useRef(null);
   const gridInstance = useRef(null);
-  const [widgets, setWidgets] = useState([
-    { id: "widget-1", chartType: "LineChartMultiple", dataType: "clicks_over_time", w: 3, h: 3, x: 0, y: 0 },
-    { id: "widget-2", chartType: "BarChartVertical", dataType: "referers_analytics", w: 3, h: 3, x: 3, y: 0 },
-    { id: "widget-3", chartType: "BubbleChart", dataType: "geo_clicks_bubble", w: 4, h: 4, x: 0, y: 3 },
-  ]);
+
+  // Estado para las fechas seleccionadas
+  // Inicializar con un rango predeterminado (puedes ajustar esto)
+  const [startDate, setStartDate] = useState(new Date(2025, 3, 3)); // 3 de abril de 2025
+  const [endDate, setEndDate] = useState(new Date(2025, 3, 9));   // 9 de abril de 2025
+
+  const initialWidgets = [
+    { id: 'widget-1', title: 'Clicks a lo largo del tiempo', chartType: 'LineChartMultiple', dataType: 'clicks_over_time' },
+    { id: 'widget-2', title: 'Clicks por País', chartType: 'BubbleChart', dataType: 'geo_clicks_bubble' },
+    { id: 'widget-3', title: 'Referers', chartType: 'BarChartVertical', dataType: 'referers_analytics' },
+    { id: 'widget-4', title: 'Clicks por URL', chartType: 'DonutChart', dataType: 'clicks_by_url' }, // <--- Añade este widget
+  ];
+  const [widgets, setWidgets] = useState(initialWidgets);
   const nextWidgetId = useRef(widgets.length + 1);
 
   const addWidget = useCallback(() => {
@@ -38,6 +55,12 @@ export default function AnalyticsPage() {
     setWidgets((prevWidgets) => prevWidgets.filter((w) => w.id !== idToRemove));
   }, []);
 
+  // Función para limpiar las fechas
+  const clearDates = useCallback(() => {
+    setStartDate(null);
+    setEndDate(null);
+  }, []);
+
   // Effect 1: Initialize GridStack and its core listeners ONCE
   useEffect(() => {
     if (gridRef.current && !gridInstance.current) {
@@ -50,27 +73,24 @@ export default function AnalyticsPage() {
         gridRef.current
       );
 
-      // Listen for GridStack's internal 'removed' event (e.g., dragged out of grid)
       gridInstance.current.on('removed', (event, items) => {
         items.forEach(item => {
-            setWidgets(prevWidgets => {
-                const updated = prevWidgets.filter(w => w.id !== item.id);
-                // When GridStack removes an item via drag, we need to unmount React root
-                if (item.el && item.el.__reactRoot) {
-                    const rootToUnmount = item.el.__reactRoot;
-                    delete item.el.__reactRoot; // Clear the reference immediately
-                    setTimeout(() => { // Defer unmount
-                        if (rootToUnmount) {
-                            rootToUnmount.unmount();
-                        }
-                    }, 0);
+          setWidgets(prevWidgets => {
+            const updated = prevWidgets.filter(w => w.id !== item.id);
+            if (item.el && item.el.__reactRoot) {
+              const rootToUnmount = item.el.__reactRoot;
+              delete item.el.__reactRoot;
+              setTimeout(() => {
+                if (rootToUnmount) {
+                  rootToUnmount.unmount();
                 }
-                return updated;
-            });
+              }, 0);
+            }
+            return updated;
+          });
         });
       });
 
-      // Listen for GridStack's 'change' event (drag/resize)
       gridInstance.current.on('change', (event, items) => {
         setWidgets(prevWidgets => {
           const updatedWidgets = [...prevWidgets];
@@ -91,20 +111,18 @@ export default function AnalyticsPage() {
       });
     }
 
-    // Cleanup: Destroy GridStack instance when component unmounts
     return () => {
       if (gridInstance.current) {
         const nodesToCleanup = [...gridInstance.current.engine.nodes];
         nodesToCleanup.forEach(node => {
           if (node.el) {
-            // Unmount the React root first
             if (node.el.__reactRoot) {
               const rootToUnmount = node.el.__reactRoot;
-              delete node.el.__reactRoot; // Clear the reference immediately
-              setTimeout(() => { // Defer unmount
-                  if (rootToUnmount) {
-                      rootToUnmount.unmount();
-                  }
+              delete node.el.__reactRoot;
+              setTimeout(() => {
+                if (rootToUnmount) {
+                  rootToUnmount.unmount();
+                }
               }, 0);
             }
             gridInstance.current.removeWidget(node.el, false);
@@ -114,42 +132,36 @@ export default function AnalyticsPage() {
         gridInstance.current = null;
       }
     };
-  }, []); // Empty dependency array: runs only once on mount
+  }, []);
 
-  // Effect 2: Synchronize React state `widgets` with GridStack's DOM and mounted components
   useEffect(() => {
     if (!gridInstance.current) {
-        return;
+      return;
     }
 
     const currentGridNodes = gridInstance.current.engine.nodes.map(node => ({
-        id: node.id,
-        el: node.el // Keep reference to the DOM element
+      id: node.id,
+      el: node.el
     }));
     const widgetsInState = widgets.map(w => w.id);
 
-    // Phase 1: Remove widgets from GridStack (and DOM) that are no longer in React state
     currentGridNodes.forEach(node => {
-        if (!widgetsInState.includes(node.id)) {
-            if (node.el) {
-                // If a React root exists for this GridStack item, unmount it.
-                // Defer the unmount call using setTimeout to avoid "synchronously unmount" error.
-                if (node.el.__reactRoot) {
-                    const rootToUnmount = node.el.__reactRoot;
-                    delete node.el.__reactRoot; // Clear the reference immediately
-
-                    setTimeout(() => {
-                        if (rootToUnmount) {
-                            rootToUnmount.unmount();
-                        }
-                    }, 0);
-                }
-                gridInstance.current.removeWidget(node.el, false);
-            }
+      if (!widgetsInState.includes(node.id)) {
+        if (node.el) {
+          if (node.el.__reactRoot) {
+            const rootToUnmount = node.el.__reactRoot;
+            delete node.el.__reactRoot;
+            setTimeout(() => {
+              if (rootToUnmount) {
+                rootToUnmount.unmount();
+              }
+            }, 0);
+          }
+          gridInstance.current.removeWidget(node.el, false);
         }
+      }
     });
 
-    // Phase 2: Add or update widgets in GridStack based on React state
     widgets.forEach(widget => {
       const existingNode = gridInstance.current.engine.nodes.find(node => node.id === widget.id);
 
@@ -170,49 +182,102 @@ export default function AnalyticsPage() {
         gridInstance.current.makeWidget(el);
 
         el.__reactRoot = ReactDOM.createRoot(content);
-        el.__reactRoot.render(<WidgetChart {...widget} onRemove={removeWidget} />);
+        el.__reactRoot.render(
+          <WidgetChart
+            {...widget}
+            onRemove={removeWidget}
+            startDate={startDate}
+            endDate={endDate}
+          />
+        );
 
       } else {
         if (existingNode.el && existingNode.el.__reactRoot) {
-          existingNode.el.__reactRoot.render(<WidgetChart {...widget} onRemove={removeWidget} />);
+          existingNode.el.__reactRoot.render(
+            <WidgetChart
+              {...widget}
+              onRemove={removeWidget}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          );
         }
       }
     });
-  }, [widgets, removeWidget]);
+  }, [widgets, removeWidget, startDate, endDate]);
 
-  return (
-    <main className="p-6">
-      <div className={styles.conteiner}>
-        <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Analytics</h1>
-          <button className={styles.addModuleButton} onClick={addWidget}>
-            <FiPlusCircle />
-            <span>Añadir modulo</span>
-          </button>
+  return(
+  <main className="p-6">
+
+    <div className={styles.conteiner}>
+
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Analytics</h1>
+        <button className={styles.addModuleButton} onClick={addWidget}>
+          <FiPlusCircle />
+          <span>Añadir modulo</span>
+        </button>
+      </div>
+
+      <div className={styles.filterSection}>
+
+        <div className={styles.dateFilter}>
+          <FaRegCalendar />
+          {/* DatePicker para la fecha de inicio */}
+
+          <DatePicker
+            selected={startDate}
+            onChange={(date) => setStartDate(date)}
+            selectsStart
+            startDate={startDate}
+            endDate={endDate}
+            locale="es"
+            dateFormat="dd/MM/yyyy"
+            className={styles.datePickerInput} // Clase para estilizar
+          />
+          <IoIosArrowForward />
+          {/* DatePicker para la fecha de fin */}
+
+          <DatePicker
+            selected={endDate}
+            onChange={(date) => setEndDate(date)}
+            selectsEnd
+            startDate={startDate}
+            endDate={endDate}
+            minDate={startDate} // La fecha de fin no puede ser anterior a la de inicio
+            locale="es"
+            dateFormat="dd/MM/yyyy"
+            className={styles.datePickerInput} // Clase para estilizar
+          />
+
+          <RxCrossCircled className="cursor-pointer" onClick={clearDates} />
+          {/* Botón para limpiar fechas */}
         </div>
 
-        <div className={styles.filterSection}>
-          <div className={styles.dateFilter}>
-            <FaRegCalendar />
-            <span className={styles.dateValue}>03/04/2025</span>
-            <IoIosArrowForward />
-            <span className={styles.dateValue}>09/04/2025</span>
-            <RxCrossCircled />
+        <div className={styles.additionalFilter}>
+
+          <div className={styles.filterInput}>
+            <TbAdjustmentsFilled />
+            <span>Añadir Filtros</span>
           </div>
-          <div className={styles.additionalFilter}>
-            <div className={styles.filterInput}>
-              <TbAdjustmentsFilled />
-              <span>Añadir Filtros</span>
-            </div>
-          </div>
-          <p className={styles.filterDescription}>Mostrando datos de todos los links y códigos QR</p>
+
         </div>
+
+        <p className={styles.filterDescription}>
+          Mostrando datos de todos los links y códigos QR
+        </p>
+
       </div>
-      <div>
-        <div className="grid-stack" ref={gridRef}>
-          {/* GridStack will manage children directly */}
-        </div>
+
+    </div>
+
+    <div>
+
+      <div className="grid-stack" ref={gridRef}>
+        {/* GridStack will manage children directly */}
       </div>
+
+    </div>
     </main>
-  );
+    );
 }
