@@ -51,3 +51,11 @@ class ClickLogOut(BaseModel):
 
 class URLWithClicks(URLInfo):
     click_logs: List[ClickLogOut]
+
+class DonutChartDataItem(BaseModel):
+    name: str
+    value: int
+
+class DonutChartResponse(BaseModel):
+    series: List[DonutChartDataItem]
+    total: int

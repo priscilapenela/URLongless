@@ -1,16 +1,18 @@
+#main.py
 from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter, Query
 from sqlalchemy.orm import Session
 from . import models, schemas, geo_info, crud
-from .database import SessionLocal, engine
+from .database import SessionLocal, engine, get_db
 from fastapi.responses import RedirectResponse, FileResponse
 from starlette.datastructures import URL
 from .config import get_settings
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from .models import ClickLog, URL as URLModel # Importa URL y lo renombra para evitar conflicto
-from datetime import datetime
+from .models import ClickLog, URL # Importa URL y lo renombra para evitar conflicto
+from datetime import datetime, timezone
 from sqlalchemy import func
+from .schemas import DonutChartResponse, DonutChartDataItem
 import json
 import requests
 import reverse_geocoder as rg
@@ -19,7 +21,7 @@ import os
 import uuid
 
 app = FastAPI()
-router = APIRouter()
+
 models.Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
@@ -231,6 +233,51 @@ def geo_clicks_analytics(
     formatted_results.sort(key=lambda x: x['total_clicks'], reverse=True)
 
     return formatted_results
+
+@app.get("/analytics/clicks_by_url", response_model=DonutChartResponse) # NOTA: Aquí solo es "/clicks_by_url" porque el prefijo se añade en main.py
+async def get_clicks_by_url(
+    db: Session = Depends(get_db),
+    start: Optional[datetime] = Query(None, description="Fecha de inicio (YYYY-MM-DDTHH:MM:SSZ)"),
+    end: Optional[datetime] = Query(None, description="Fecha de fin (YYYY-MM-DDTHH:MM:SSZ)"),
+):
+    print(f"Backend: Recibida petición para clicks_by_url. Start: {start}, End: {end}") # <-- CRUCIAL
+    query = db.query(
+        URL.custom_name,
+        URL.key,
+        func.count(ClickLog.id).label("total_clicks")
+    ).join(ClickLog, URL.id == ClickLog.url_id)
+
+    if start:
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        query = query.filter(ClickLog.timestamp >= start)
+    if end:
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
+        query = query.filter(ClickLog.timestamp <= end)
+
+    query = query.group_by(URL.id, URL.custom_name, URL.key)
+    query = query.order_by(func.count(ClickLog.id).desc())
+
+    import logging
+    logging.basicConfig()
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
+    url_data_raw = query.all()
+    print(f"Backend: Resultados de la consulta SQL (raw): {url_data_raw}")
+
+    series_data: List[DonutChartDataItem] = []
+    total_clicks_sum = 0
+
+    for custom_name, key, total_clicks in url_data_raw:
+        name_for_chart = custom_name if custom_name else key
+        series_data.append(DonutChartDataItem(name=name_for_chart, value=total_clicks))
+        total_clicks_sum += total_clicks
+
+    if not series_data:
+        return DonutChartResponse(series=[], total=0)
+
+    return DonutChartResponse(series=series_data, total=total_clicks_sum)
 
 @app.get("/urls", response_model=List[schemas.URLList])
 def get_all_urls(db: Session = Depends(get_db)):
