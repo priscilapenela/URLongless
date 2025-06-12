@@ -1,8 +1,12 @@
 # shortener_app/crud.py
 from sqlalchemy.orm import Session
 from . import keygen, models, schemas
+import secrets
+from starlette.datastructures import URL as StarletteURL # Asegúrate de que esto está renombrado si lo usas aquí
+from .config import get_settings
 
 def create_db_url(db: Session, url: schemas.URLBase) -> models.URL:
+
     if url.custom_key:
         # Si el custom_key ya está en uso, lanzar error
         existing = get_db_url_by_key(db, url.custom_key)
@@ -16,7 +20,10 @@ def create_db_url(db: Session, url: schemas.URLBase) -> models.URL:
     db_url = models.URL(
         target_url=url.target_url,
         key=key,
-        secret_key=secret_key
+        secret_key=secret_key,
+        custom_name=url.custom_key, # <--- ¡AÑADE ESTA LÍNEA!
+        is_active=True,             # <--- Añadido para asegurar valores por defecto
+        clicks=0                    # <--- Añadido para asegurar valores por defecto
     )
     db.add(db_url)
     db.commit()

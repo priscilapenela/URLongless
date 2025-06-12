@@ -15,7 +15,11 @@ class URL(URLBase):
         from_attributes = True
 
 class URLInfo(URL):
-    url: str
+    target_url: str
+    is_active: bool
+    clicks: int
+    custom_name: Optional[str] = None
+    url: str # <--- Renombra a 'url' si quieres que se llame así en el JSON de respuesta
     admin_url: str
 
     class Config:

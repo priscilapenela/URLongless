@@ -12,6 +12,8 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalValue, setTotalValue] = useState(0); // Estado para el total del DonutChart
+   // Paleta de colores para las líneas (puedes expandirla)
+  const lineColors = ["#8b5cf6", "#ec4899", "#10b981", "#ef4444", "#3b82f6", "#f97316", "#a855f7", "#be185d", "#84cc16", "#06b6d4"];
 
   useEffect(() => {
     console.log(`[${id}] useEffect triggered for dataType: ${dataType}`);
@@ -26,17 +28,9 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
       console.warn(`[${id}] Fechas no válidas. No se hará la petición.`);
       return;
     }
-
-    // Formatea las fechas para la URL. Es importante que coincidan con lo que espera FastAPI.
-    // FastAPI espera ISO format con Z (UTC) o sin Z si se asume UTC en el backend.
-    // Usar toISOString directamente y luego ajustar si es necesario para el backend.
+  
     const formattedStartDate = startDate.toISOString().split('.')[0] + 'Z'; // Ejemplo: 2025-04-03T03:00:00Z
     const formattedEndDate = endDate.toISOString().split('.')[0] + 'Z'; // Ejemplo: 2025-04-09T03:00:00Z
-    
-    // Si tu backend espera YYYY-MM-DDTHH:MM:SS sin Z, puedes usar:
-    // const formattedStartDate = startDate.toISOString().split('.')[0];
-    // const formattedEndDate = endDate.toISOString().split('.')[0];
-    // Pero con el Z es más robusto para UTC.
 
     switch (dataType) {
       case 'clicks_over_time':
@@ -70,62 +64,63 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
       .then((json) => {
         console.log(`[${id}] Data received (raw):`, json);
 
-        let processedData = [];
+        let processedSeriesData = []; 
         let calculatedTotal = 0;
+        let colorIndex = 0; 
 
-        // *** CONDICIONALIZAR EL PROCESAMIENTO SEGÚN EL TIPO DE DATOS ***
         if (dataType === 'clicks_by_url') {
-            // Este es el caso para el DonutChart
             if (json && Array.isArray(json.series)) {
-                processedData = json.series.map(item => ({
+                processedSeriesData = json.series.map(item => ({
                     name: item.name,
                     value: item.value
                 }));
-                calculatedTotal = json.total || 0; // Obtiene el total del JSON
+                calculatedTotal = json.total || 0; 
             } else {
                 console.warn(`[${id}] Data for clicks_by_url is not in expected DonutChartResponse format (missing 'series' array):`, json);
-                processedData = [];
+                processedSeriesData = [];
                 calculatedTotal = 0;
             }
         } else if (dataType === 'clicks_over_time') {
-            // Este es el caso para el LineChartMultiple
-            if (Array.isArray(json)) {
-                processedData = json.map(serie => {
-                    const processedSerieData = Array.isArray(serie.data)
-                        ? serie.data.map(d => ({
-                              date: new Date(d.date), // Convertir a objeto Date
-                              value: d.value
-                          }))
-                        : [];
-                    return {
-                        ...serie,
-                        data: processedSerieData
-                    };
-                });
-            } else {
-                console.warn(`[${id}] Data for clicks_over_time is not an array as expected:`, json);
-                processedData = [];
-            }
+          const seriesFromApi = Array.isArray(json) ? json : [json];
+
+          processedSeriesData = seriesFromApi.map(serie => {
+            const dataPoints = Array.isArray(serie.data)
+              ? serie.data.map(d => ({
+                date: new Date(d.date), // Confirmamos la conversión a Date
+                value: d.value
+              }))
+              : [];
+
+            // Asigna un color único a cada serie
+            const assignedColor = serie.color || lineColors[colorIndex % lineColors.length];
+            colorIndex++; // Incrementa para la siguiente serie
+
+            return {
+              name: serie.name || serie.url_key || 'Serie Desconocida',
+              data: dataPoints,
+              color: assignedColor
+            };
+          });
         } else if (dataType === 'referers_analytics' || dataType === 'geo_clicks_bubble') {
-            // Estos son para BarChartVertical y BubbleChart, esperan un array de objetos
             if (Array.isArray(json)) {
-                processedData = json;
+                processedSeriesData = json;
             } else {
                 console.warn(`[${id}] Data for ${dataType} is not an array as expected:`, json);
-                processedData = [];
+                processedSeriesData = [];
             }
         } else {
             console.warn(`[${id}] Unhandled dataType for processing: ${dataType}`);
-            processedData = [];
+            processedSeriesData = [];
         }
 
-        console.log(`[${id}] Data received (processed):`, processedData);
-        setDataSeries(processedData);
+        console.log(`[${id}] Data received (processed):`, processedSeriesData);
+        setDataSeries(processedSeriesData);
         setTotalValue(calculatedTotal); // Guarda el total para el DonutChart
       })
       .catch((err) => {
         console.error(`[${id}] Error cargando analytics para ${dataType}:`, err);
         setError(`No se pudieron cargar los datos para ${dataType}. ` + err.message);
+        console.log(`[${id}] Data received (processed for chart - FINAL before setDataSeries):`, processedSeriesData);
         setDataSeries([]);
         setTotalValue(0);
       })
@@ -142,9 +137,13 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
     if (error) {
       return <div className="text-center text-red-500">Error: {error}</div>;
     }
-    // Para el DonutChart, si no hay series pero el total es 0, también "No hay datos"
     if (!dataSeries || dataSeries.length === 0) {
-      return <div className="text-center text-gray-500">No hay datos disponibles.</div>;
+      if (chartType === "DonutChart" && totalValue === 0) {
+        return <div className="text-center text-gray-500">No hay datos disponibles.</div>;
+      }
+      if (chartType !== "DonutChart") {
+        return <div className="text-center text-gray-500">No hay datos disponibles.</div>;
+      }
     }
 
     switch (chartType) {
@@ -154,8 +153,7 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
         return <BarChartVertical data={dataSeries} />;
       case "BubbleChart":
         return <BubbleChart data={dataSeries} />;
-      case "DonutChart": // Agrega el caso para DonutChart
-        // Pasa los datos de la serie y el total al DonutChart
+      case "DonutChart":
         return <DonutChart data={dataSeries} total={totalValue} />; 
       default:
         return <div className="text-center text-red-500">Tipo de gráfico no soportado.</div>;

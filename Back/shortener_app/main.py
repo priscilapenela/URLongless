@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from . import models, schemas, geo_info, crud
 from .database import SessionLocal, engine, get_db
 from fastapi.responses import RedirectResponse, FileResponse
-from starlette.datastructures import URL
+from starlette.datastructures import URL as StarletteURL
 from .config import get_settings
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from .models import ClickLog, URL # Importa URL y lo renombra para evitar conflicto
+from .models import ClickLog, URL 
 from datetime import datetime, timezone
 from sqlalchemy import func
 from .schemas import DonutChartResponse, DonutChartDataItem
@@ -99,13 +99,24 @@ def get_url_info(
         raise_not_found(request)
 
 def get_admin_info(db_url: models.URL) -> schemas.URLInfo:
-    base_url = URL(get_settings().base_url)
-    admin_endpoint = app.url_path_for(
-        "administration info", secret_key=db_url.secret_key
+    settings = get_settings()
+    
+    # Usa la StarletteURL renombrada para construir las URLs
+    base_url_obj = StarletteURL(settings.base_url) 
+    
+    admin_endpoint_path = app.url_path_for("administration info", secret_key=db_url.secret_key)
+    
+    short_url = str(base_url_obj.replace(path=db_url.key))
+    admin_url = str(base_url_obj.replace(path=admin_endpoint_path))
+
+    return schemas.URLInfo(
+        target_url=db_url.target_url,
+        is_active=db_url.is_active,
+        clicks=db_url.clicks,
+        custom_name=db_url.custom_name,
+        admin_url=admin_url,
+        url=short_url,
     )
-    db_url.url = str(base_url.replace(path=db_url.key))
-    db_url.admin_url = str(base_url.replace(path=admin_endpoint))
-    return db_url
 
 @app.delete("/admin/{secret_key}")
 def delete_url(
@@ -120,8 +131,8 @@ def delete_url(
 @app.get("/analytics/referers")
 def referrers_analytics(
     db: Session = Depends(get_db),
-    start: datetime = Query(None), # Opcional: para filtrar por fecha
-    end: datetime = Query(None)    # Opcional: para filtrar por fecha
+    start: datetime = Query(None),
+    end: datetime = Query(None)    
 ):
     query = db.query(
         models.ClickLog.referer,
@@ -134,12 +145,8 @@ def referrers_analytics(
         query = query.filter(models.ClickLog.timestamp <= end)
 
     results = query.all()
-
-    # Formatear los resultados para que se ajusten al formato que espera BarChartVertical
-    # BarChartVertical espera [{ key: string, value: number }]
     formatted_results = []
     for referer, total_clicks in results:
-        # Puedes manejar referer nulo o vacío si lo deseas
         display_referer = referer if referer else "Directo / Desconocido"
         formatted_results.append({
             "key": display_referer,
@@ -156,9 +163,10 @@ def clicks_over_time(
 ):
     query = db.query(
         models.URL.key.label("key"),
-        func.strftime('%Y-%m-%d %H:00', models.ClickLog.timestamp).label("hour"),
+        # *** CAMBIO CLAVE AQUÍ: Agrupa por día (YYYY-MM-DD) ***
+        func.strftime('%Y-%m-%d', models.ClickLog.timestamp).label("day"),
         func.count().label("clicks")
-    ).join(models.ClickLog).group_by("key", "hour").order_by("hour")
+    ).join(models.ClickLog).group_by("key", "day").order_by("day")
 
     if start:
         query = query.filter(models.ClickLog.timestamp >= start)
@@ -167,15 +175,15 @@ def clicks_over_time(
 
     results = query.all()
 
-    # Formateo de respuesta
     grouped = {}
-    for key, hour, clicks in results:
+    # Renombra 'hour' a 'day' en el bucle también para mayor claridad
+    for key, day, clicks in results:
         grouped.setdefault(key, []).append({
-            "date": hour,
+            "date": day, # Envía solo la fecha del día
             "value": clicks
         })
 
-    return [{"name": key, "color": "#8b5cf6", "data": values} for key, values in grouped.items()]
+    return [{"name": key, "data": values} for key, values in grouped.items()]
 
 @app.get("/analytics/geo_clicks")
 def geo_clicks_analytics(
@@ -200,18 +208,12 @@ def geo_clicks_analytics(
     for log_entry, short_code_val in results:
         country_code = "Unknown"
         if log_entry.geo_info:
-            # ¡CAMBIO AQUÍ! No uses json.loads() si ya es un diccionario.
-            # Asignamos directamente porque el error indica que ya es un dict.
             geo_data = log_entry.geo_info
-
-            # Aseguramos que sea un diccionario antes de acceder a sus claves
             if isinstance(geo_data, dict):
                 if 'country_code' in geo_data and geo_data['country_code']:
                     country_code = geo_data['country_code']
                 elif 'country' in geo_data and geo_data['country']:
                     country_code = geo_data['country']
-            # else: Si por alguna razón no es un dict, se podría manejar aquí
-            # por ejemplo, logueando un error o asumiendo "Unknown"
 
         clicks_count = log_entry.clicks if hasattr(log_entry, 'clicks') and log_entry.clicks is not None else 1
 
@@ -234,7 +236,7 @@ def geo_clicks_analytics(
 
     return formatted_results
 
-@app.get("/analytics/clicks_by_url", response_model=DonutChartResponse) # NOTA: Aquí solo es "/clicks_by_url" porque el prefijo se añade en main.py
+@app.get("/analytics/clicks_by_url", response_model=DonutChartResponse)
 async def get_clicks_by_url(
     db: Session = Depends(get_db),
     start: Optional[datetime] = Query(None, description="Fecha de inicio (YYYY-MM-DDTHH:MM:SSZ)"),
@@ -256,7 +258,7 @@ async def get_clicks_by_url(
             end = end.replace(tzinfo=timezone.utc)
         query = query.filter(ClickLog.timestamp <= end)
 
-    query = query.group_by(URL.id, URL.custom_name, URL.key)
+    query = query.group_by(models.URL.id, models.URL.custom_name, models.URL.key)
     query = query.order_by(func.count(ClickLog.id).desc())
 
     import logging
@@ -302,6 +304,12 @@ def forward_to_target_url(
 
     crud.update_db_clicks(db=db, db_url=db_url)
 
+    from datetime import datetime
+    db_url.last_accessed = datetime.now() # Usa datetime.now() para la hora local o datetime.utcnow() para UTC
+    db.add(db_url) # Vuelve a añadir a la sesión para marcarlo como modificado, aunque el commit lo manejará
+    db.commit() # Guarda los cambios, incluyendo last_accessed
+    db.refresh(db_url) # Refresca para obtener el estado más reciente de la DB
+
     user_agent = request.headers.get("user-agent", "")
     referer = request.headers.get("referer", "")
     ip_address = request.headers.get("X-Forwarded-For", request.client.host)
@@ -327,9 +335,9 @@ def forward_to_target_url(
         user_agent=user_agent,
         referer=referer,
         ip_address=ip_address,
-        geo_info=json.dumps(geo_info_data) if geo_info_data else None # Guardar como string JSON
+        geo_info=geo_info_data 
     )
     db.add(click_log)
     db.commit()
-
+    db.refresh(click_log)
     return RedirectResponse(db_url.target_url)
