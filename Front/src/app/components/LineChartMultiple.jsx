@@ -2,11 +2,12 @@
 "use client";
 import React from "react";
 import {
-  scaleTime,
-  scaleLinear,
-  max,
-  line as d3_line,
-  curveMonotoneX,
+  scaleTime,
+  scaleLinear,
+  max,
+  line as d3_line,
+  curveMonotoneX,
+  timeDay // <--- Asegúrate de importar timeDay
 } from "d3";
 
 /**
@@ -20,30 +21,46 @@ export default function LineChartMultiple({ dataSeries }) {
   // Añade este console.log para ver los datos que LineChartMultiple recibe
   console.log("LineChartMultiple - Received dataSeries:", dataSeries);
 
-  if (!Array.isArray(dataSeries) || dataSeries.length === 0) {
-    return <div>No hay datos para mostrar.</div>;
-  }
+  const processedDataSeries = dataSeries.map(serie => ({
+    ...serie,
+    data: serie.data.map(d => ({
+      ...d,
+      // *** CAMBIO CLAVE AQUÍ: Normaliza la fecha a la medianoche UTC ***
+      date: new Date(new Date(d.date).setUTCHours(0, 0, 0, 0)) // Establece la hora a 00:00:00 UTC
+    }))
+  }));
 
-  // Verifica si las series tienen datos antes de intentar mapear
-  const allDates = dataSeries.flatMap((serie) =>
+  const allDates = processedDataSeries.flatMap((serie) =>
     Array.isArray(serie.data) ? serie.data.map((d) => d.date) : []
   );
-  const allValues = dataSeries.flatMap((serie) =>
+  const allValues = processedDataSeries.flatMap((serie) =>
     Array.isArray(serie.data) ? serie.data.map((d) => d.value) : []
   );
 
-  // Asegúrate de que allDates y allValues no estén vacíos antes de calcular dominios
   if (allDates.length === 0 || allValues.length === 0) {
     console.warn("LineChartMultiple - No dates or values found after flatMap.");
     return <div>No hay datos para mostrar (después de procesamiento interno).</div>;
   }
 
+  const uniqueSortedDates = Array.from(new Set(allDates.map(date => date.getTime())))
+    .map(time => new Date(time))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const minDate = uniqueSortedDates.length > 0 ? uniqueSortedDates[0] : new Date();
+  const maxDate = uniqueSortedDates.length > 0 ? uniqueSortedDates[uniqueSortedDates.length - 1] : new Date();
+
+  // Si minDate y maxDate son iguales (un solo punto de datos), ajusta el dominio para que sea visible
+  if (minDate.getTime() === maxDate.getTime()) {
+      minDate.setHours(minDate.getHours() - 1); // un rango de 2 horas
+      maxDate.setHours(maxDate.getHours() + 1);
+  }
+  
   const xScale = scaleTime()
-    .domain([Math.min(...allDates), Math.max(...allDates)])
+    .domain([minDate, maxDate]) // Usa los dominios ajustados
     .range([0, 100]);
 
   const yScale = scaleLinear()
-    .domain([0, max(allValues)])
+    .domain([0, max(allValues) === 0 ? 1 : max(allValues)]) // Evita dominio [0,0] si max es 0
     .range([100, 0]);
 
   const line = d3_line()
@@ -52,6 +69,8 @@ export default function LineChartMultiple({ dataSeries }) {
     .curve(curveMonotoneX);
 
   console.log("LineChartMultiple - Scales calculated. xScale domain:", xScale.domain(), "yScale domain:", yScale.domain());
+  console.log("LineChartMultiple - Unique sorted dates for X axis:", uniqueSortedDates);
+  console.log("LineChartMultiple - X axis ticks for rendering:", xScale.ticks(timeDay.every(1))); // El log de los ticks
 
   return (
     <div
@@ -104,7 +123,7 @@ export default function LineChartMultiple({ dataSeries }) {
             ))}
 
           {/* Líneas y puntos por serie */}
-          {dataSeries.map((serie, idx) => {
+          {processedDataSeries.map((serie, idx) => { // <-- Usa processedDataSeries aquí
             // Asegúrate de que serie.data existe y es un array antes de pasar a 'line'
             if (!Array.isArray(serie.data) || serie.data.length === 0) {
               return null; // No renderiza la serie si no tiene datos válidos
@@ -137,20 +156,24 @@ export default function LineChartMultiple({ dataSeries }) {
 
         {/* Eje X */}
         <div className="translate-y-2">
-          {/* Asegúrate de que dataSeries[0] y dataSeries[0].data existan */}
-          {dataSeries[0]?.data && dataSeries[0].data.map((point, i) => (
-            <div
-              key={i}
-              style={{
-                left: `${xScale(point.date)}%`,
-                top: "100%",
-                transform: `translateX(-50%)`,
-              }}
-              className="absolute text-xs text-zinc-500"
-            >
-              {point.date.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
-            </div>
-          ))}
+          {uniqueSortedDates.map((tickDate, i) => (
+              <div
+                key={i}
+                style={{
+                  left: `${xScale(tickDate)}%`,
+                  top: "100%",
+                  transform: `translateX(-50%)`,
+                }}
+                className="absolute text-xs text-zinc-500">
+                {
+                tickDate.toLocaleDateString("es-ES", {
+                  day: "2-digit",
+                  month: "short",
+                  timeZone: 'UTC' // <-- Añade esta opción
+                })
+                }
+              </div>
+            ))}
         </div>
       </div>
     </div>

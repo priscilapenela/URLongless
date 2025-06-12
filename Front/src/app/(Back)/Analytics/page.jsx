@@ -28,18 +28,18 @@ export default function AnalyticsPage() {
   // Estado para las fechas seleccionadas
   // Inicializar con un rango predeterminado (puedes ajustar esto)
   const [startDate, setStartDate] = useState(new Date(2025, 3, 3)); // 3 de abril de 2025
-  const [endDate, setEndDate] = useState(new Date(2025, 3, 9));   // 9 de abril de 2025
+  const [endDate, setEndDate] = useState(new Date(2025, 3, 9)); // 9 de abril de 2025
 
   const initialWidgets = [
-    { id: 'widget-1', title: 'Clicks a lo largo del tiempo', chartType: 'LineChartMultiple', dataType: 'clicks_over_time' },
-    { id: 'widget-2', title: 'Clicks por País', chartType: 'BubbleChart', dataType: 'geo_clicks_bubble' },
-    { id: 'widget-3', title: 'Referers', chartType: 'BarChartVertical', dataType: 'referers_analytics' },
-    { id: 'widget-4', title: 'Clicks por URL', chartType: 'DonutChart', dataType: 'clicks_by_url' }, // <--- Añade este widget
-  ];
-  const [widgets, setWidgets] = useState(initialWidgets);
+    { id: 'widget-1', title: 'Clicks a lo largo del tiempo', chartType: 'LineChartMultiple', dataType: 'clicks_over_time' },
+    { id: 'widget-2', title: 'Clicks por País', chartType: 'BubbleChart', dataType: 'geo_clicks_bubble' },
+    { id: 'widget-3', title: 'Referers', chartType: 'BarChartVertical', dataType: 'referers_analytics' },
+    { id: 'widget-4', title: 'Clicks por URL', chartType: 'DonutChart', dataType: 'clicks_by_url' },
+  ];
+  const [widgets, setWidgets] = useState(initialWidgets);
   const nextWidgetId = useRef(widgets.length + 1);
 
-  const addWidget = useCallback(() => {
+  /*const addWidget = useCallback(() => {
     const newWidgetId = `widget-${nextWidgetId.current++}`;
     const newWidget = {
       id: newWidgetId,
@@ -49,7 +49,7 @@ export default function AnalyticsPage() {
       h: 3,
     };
     setWidgets((prevWidgets) => [...prevWidgets, newWidget]);
-  }, []);
+  }, []);*/
 
   const removeWidget = useCallback((idToRemove) => {
     setWidgets((prevWidgets) => prevWidgets.filter((w) => w.id !== idToRemove));
@@ -213,7 +213,7 @@ export default function AnalyticsPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>Analytics</h1>
-        <button className={styles.addModuleButton} onClick={addWidget}>
+        <button className={styles.addModuleButton}>
           <FiPlusCircle />
           <span>Añadir modulo</span>
         </button>

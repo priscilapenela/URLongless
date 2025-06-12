@@ -1,20 +1,10 @@
 // Front/src/app/components/DonutChart.jsx
-"use client"; // No olvides esta directiva si usas Next.js App Router
+"use client"; 
 import React from 'react';
 import { pie, arc } from "d3";
 
-// Ya no necesitamos las definiciones 'type'
-// type DonutDataItem = {
-//     name: string;
-//     value: number;
-// };
-// type DonutChartProps = {
-//     series: DonutDataItem[];
-//     total: number;
-// };
-
 const defaultColors = [
-  "#7e4cfe", // Un púrpura vibrante
+  "#7e4cfe",
   "#895cfc",
   "#956bff",
   "#a37fff",
@@ -27,19 +17,19 @@ const defaultColors = [
 ];
 
 // Ahora el componente acepta 'series' y 'total' directamente sin anotaciones de tipo
-export default function DonutChart({ series, total }) {
-  const radius = 420; // Chart base dimensions
-  const gap = 0.01; // Gap between slices
-  const lightStrokeEffect = 10; // 3d light effect around the slice
+export default function DonutChart({ data, total }) {
+  console.log('Series:', data)
+  console.log('Data:', total)
+  const radius = 420; 
+  const gap = 0.01; 
+  const lightStrokeEffect = 10; 
 
-  if (!Array.isArray(series) || series.length === 0) {
+  if (!Array.isArray(data) || data.length === 0) {
     return (
       <div className="text-center text-gray-500">No hay datos para la gráfica de Dona.</div>
     );
   }
 
-  // Pie layout y arc generator
-  // Se eliminan las anotaciones de tipo de D3
   const pieLayout = pie()
     .value((d) => d.value)
     .padAngle(gap)
@@ -59,7 +49,7 @@ export default function DonutChart({ series, total }) {
   const labelRadius = radius * 0.825;
   const arcLabel = arc().innerRadius(labelRadius).outerRadius(labelRadius);
 
-  const arcs = pieLayout(series); // Usa los 'series' que vienen por props
+  const arcs = pieLayout(data); // Usa los 'series' que vienen por props
 
   // Calculate the angle for each slice
   // Se elimina la anotación de tipo del parámetro 'd'
@@ -112,7 +102,7 @@ export default function DonutChart({ series, total }) {
               <text
                 transform={`translate(${arcLabel.centroid(d)})`}
                 textAnchor="middle"
-                fontSize={20}
+                fontSize={38}
                 fill="#eee"
               >
                 <tspan x="0" y="-0.4em" fontWeight="600">
