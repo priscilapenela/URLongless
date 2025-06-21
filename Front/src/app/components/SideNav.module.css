@@ -3,9 +3,8 @@
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
-  border-right: 1px solid #858a8e;
+  /*border-right: 1px solid #858a8e;*/
   background-color: #fff;
-  height: -webkit-fill-available;
 }
   
 .sidebarHeader {
@@ -46,6 +45,8 @@
   padding: 16px 8px;
   border-top: 1px solid rgba(134, 139, 143, 0.5);
   border-bottom: 1px solid rgba(134, 139, 143, 0.5);
+  flex-grow: 1; /* <-- ¡Importante! Hace que el menú de navegación se estire */
+  overflow-y: auto; /* Si el menú es muy largo, permite scroll */
 }
   
 .navItem {
@@ -60,4 +61,19 @@
   text-decoration: none;
   color: #000;
   font-size:larger;
+
+  /* Transición suave para el efecto hover */
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.navItem:hover {
+  background-color: #4724f62c; /* Un gris muy claro para el fondo al pasar el ratón */
+  color: #4724f6; /* Cambiar el color del texto a tu color púrpura principal */
+  cursor: pointer; /* Indica que es un elemento interactivo */
+}
+
+.navItem.active {
+  background-color: #4724f62c; /* Un gris más oscuro para el elemento activo */
+  color: #4724f6; /* Mantener el color púrpura para el texto activo */
+  font-weight: 800; /* Hacer el texto más audaz para el activo */
 }

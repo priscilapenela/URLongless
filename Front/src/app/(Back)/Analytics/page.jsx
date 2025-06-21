@@ -31,10 +31,10 @@ export default function AnalyticsPage() {
   const [endDate, setEndDate] = useState(new Date(2025, 3, 9)); // 9 de abril de 2025
 
   const initialWidgets = [
-    { id: 'widget-1', title: 'Clicks a lo largo del tiempo', chartType: 'LineChartMultiple', dataType: 'clicks_over_time' },
-    { id: 'widget-2', title: 'Clicks por País', chartType: 'BubbleChart', dataType: 'geo_clicks_bubble' },
-    { id: 'widget-3', title: 'Referers', chartType: 'BarChartVertical', dataType: 'referers_analytics' },
-    { id: 'widget-4', title: 'Clicks por URL', chartType: 'DonutChart', dataType: 'clicks_by_url' },
+    { id: 'widget-1', title: 'Clicks a lo largo del tiempo', chartType: 'LineChartMultiple', dataType: 'clicks_over_time', w: 5, h: 6},
+    { id: 'widget-3', title: 'Referers', chartType: 'BarChartVertical', dataType: 'referers_analytics', w: 5, h: 6},
+    { id: 'widget-2', title: 'Clicks por País', chartType: 'BubbleChart', dataType: 'geo_clicks_bubble', w: 3, h: 6},
+    { id: 'widget-4', title: 'Clicks por URL', chartType: 'DonutChart', dataType: 'clicks_by_url', w: 3, h: 6},
   ];
   const [widgets, setWidgets] = useState(initialWidgets);
   const nextWidgetId = useRef(widgets.length + 1);

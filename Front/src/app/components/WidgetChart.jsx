@@ -1,6 +1,7 @@
 // Front/src/app/components/WidgetChart.jsx
 "use client";
 import React, { useEffect, useState } from "react";
+import { ClientTooltip } from './Tooltip'; // Importa ClientTooltip
 import LineChartMultiple from "./LineChartMultiple";
 import { BarChartVertical } from "./BarChartVertical";
 import { RxCrossCircled } from "react-icons/rx";
@@ -14,6 +15,8 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
   const [totalValue, setTotalValue] = useState(0); // Estado para el total del DonutChart
    // Paleta de colores para las líneas (puedes expandirla)
   const lineColors = ["#8b5cf6", "#ec4899", "#10b981", "#ef4444", "#3b82f6", "#f97316", "#a855f7", "#be185d", "#84cc16", "#06b6d4"];
+
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   useEffect(() => {
     console.log(`[${id}] useEffect triggered for dataType: ${dataType}`);
@@ -34,16 +37,16 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
 
     switch (dataType) {
       case 'clicks_over_time':
-        apiUrl = `http://127.0.0.1:8000/analytics/clicks_over_time?start=${formattedStartDate}&end=${formattedEndDate}`;
+        apiUrl = `${API_BASE_URL}/analytics/clicks_over_time?start=${formattedStartDate}&end=${formattedEndDate}`;
         break;
       case 'referers_analytics':
-        apiUrl = `http://127.0.0.1:8000/analytics/referers?start=${formattedStartDate}&end=${formattedEndDate}`;
+        apiUrl = `${API_BASE_URL}/analytics/referers?start=${formattedStartDate}&end=${formattedEndDate}`;
         break;
       case 'geo_clicks_bubble':
-        apiUrl = `http://127.0.0.1:8000/analytics/geo_clicks?start=${formattedStartDate}&end=${formattedEndDate}`;
+        apiUrl = `${API_BASE_URL}/analytics/geo_clicks?start=${formattedStartDate}&end=${formattedEndDate}`;
         break;
       case "clicks_by_url":
-        apiUrl = `http://127.0.0.1:8000/analytics/clicks_by_url?start=${formattedStartDate}&end=${formattedEndDate}`;
+        apiUrl = `${API_BASE_URL}/analytics/clicks_by_url?start=${formattedStartDate}&end=${formattedEndDate}`;
         break;
       default:
         setError("Tipo de dato no soportado.");
@@ -53,6 +56,7 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
     }
 
     console.log(`[${id}] Fetching data from: ${apiUrl}`);
+    console.log(`[${id}] URL being fetched: ${apiUrl}`);
 
     fetch(apiUrl)
       .then((res) => {
@@ -64,26 +68,26 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
       .then((json) => {
         console.log(`[${id}] Data received (raw):`, json);
 
-        let processedSeriesData = []; 
+        let currentProcessedSeriesData = []; 
         let calculatedTotal = 0;
         let colorIndex = 0; 
 
         if (dataType === 'clicks_by_url') {
             if (json && Array.isArray(json.series)) {
-                processedSeriesData = json.series.map(item => ({
+                currentProcessedSeriesData = json.series.map(item => ({
                     name: item.name,
                     value: item.value
                 }));
                 calculatedTotal = json.total || 0; 
             } else {
                 console.warn(`[${id}] Data for clicks_by_url is not in expected DonutChartResponse format (missing 'series' array):`, json);
-                processedSeriesData = [];
+                currentProcessedSeriesData = [];
                 calculatedTotal = 0;
             }
         } else if (dataType === 'clicks_over_time') {
           const seriesFromApi = Array.isArray(json) ? json : [json];
 
-          processedSeriesData = seriesFromApi.map(serie => {
+          currentProcessedSeriesData = seriesFromApi.map(serie => {
             const dataPoints = Array.isArray(serie.data)
               ? serie.data.map(d => ({
                 date: new Date(d.date), // Confirmamos la conversión a Date
@@ -103,31 +107,32 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
           });
         } else if (dataType === 'referers_analytics' || dataType === 'geo_clicks_bubble') {
             if (Array.isArray(json)) {
-                processedSeriesData = json;
+                currentProcessedSeriesData = json;
             } else {
                 console.warn(`[${id}] Data for ${dataType} is not an array as expected:`, json);
-                processedSeriesData = [];
+                currentProcessedSeriesData = [];
             }
         } else {
             console.warn(`[${id}] Unhandled dataType for processing: ${dataType}`);
-            processedSeriesData = [];
+            currentProcessedSeriesData = [];
         }
 
-        console.log(`[${id}] Data received (processed):`, processedSeriesData);
-        setDataSeries(processedSeriesData);
+        console.log(`[${id}] Data received (processed):`, currentProcessedSeriesData);
+        setDataSeries(currentProcessedSeriesData);
         setTotalValue(calculatedTotal); // Guarda el total para el DonutChart
       })
       .catch((err) => {
         console.error(`[${id}] Error cargando analytics para ${dataType}:`, err);
         setError(`No se pudieron cargar los datos para ${dataType}. ` + err.message);
-        console.log(`[${id}] Data received (processed for chart - FINAL before setDataSeries):`, processedSeriesData);
+        // Quita el console.log que causaba el ReferenceError, o asegúrate de que la variable esté en este ámbito
+        // console.log(`[${id}] Data received (processed for chart - FINAL before setDataSeries):`, processedSeriesData); // <-- ELIMINAR O COMENTAR ESTA LÍNEA
         setDataSeries([]);
         setTotalValue(0);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [dataType, startDate, endDate, id]); // Asegúrate de incluir todas las dependencias
+  }, [dataType, startDate, endDate, id, API_BASE_URL]); // Asegúrate de incluir todas las dependencias
 
   const renderChart = () => {
     console.log(`[${id}] Rendering chart. Loading: ${loading}, Error: ${error}, DataSeries Length: ${dataSeries?.length}`);
@@ -148,7 +153,11 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
 
     switch (chartType) {
       case "LineChartMultiple":
-        return <LineChartMultiple dataSeries={dataSeries} />;
+      return (
+        <ClientTooltip>
+          <LineChartMultiple dataSeries={dataSeries} />
+        </ClientTooltip>
+      );
       case "BarChartVertical":
         return <BarChartVertical data={dataSeries} />;
       case "BubbleChart":
@@ -161,7 +170,7 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
   };
 
   return (
-    <div className="relative p-4 h-full flex flex-col">
+    <div className="relative p-8 h-[400px] flex flex-col">
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-lg font-semibold text-gray-800">
           {dataType === "clicks_over_time" && "Clicks a lo largo del tiempo"}

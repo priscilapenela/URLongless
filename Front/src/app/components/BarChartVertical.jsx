@@ -20,7 +20,20 @@ export function BarChartVertical({ data }) {
   const yScale = scaleLinear()
     .domain([0, max(data.map((d) => d.value)) ?? 0])
     .range([100, 0]);
-
+  
+  const barColors = [
+    "bg-blue-400", // Azul
+    "bg-green-400", // Verde
+    "bg-red-400",   // Rojo
+    "bg-purple-400", // Morado
+    "bg-yellow-400", // Amarillo
+    "bg-pink-400",   // Rosa
+    "bg-teal-400",   // Teal
+    "bg-indigo-400", // Indigo
+    "bg-orange-400", // Naranja
+    "bg-cyan-400",   // Cian
+    // Puedes añadir más colores si esperas tener más de 10 barras
+  ];
   return (
     <div
       className="relative h-72 w-full grid"
@@ -107,6 +120,8 @@ export function BarChartVertical({ data }) {
         {filledData.map((d, index) => {
           const barWidth = xScale.bandwidth();
           const barHeight = yScale(0) - yScale(d.value);
+          // Selecciona un color del array usando el operador módulo (%)
+          const colorClass = barColors[index % barColors.length]; 
           return (
             <div
               key={index}
@@ -116,7 +131,8 @@ export function BarChartVertical({ data }) {
                 borderRadius: "6px 6px 0 0",
                 marginLeft: `${xScale(d.key)}%`,
               }}
-              className="absolute bottom-0 bg-gradient-to-b from-fuchsia-200 to-fuchsia-300"
+              // Aplica la clase de color seleccionada
+              className={`absolute bottom-0 ${colorClass}`} 
             />
           );
         })}

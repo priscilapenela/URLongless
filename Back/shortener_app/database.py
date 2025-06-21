@@ -5,8 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from .config import get_settings
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://shortener_user:urlongless@localhost/shortener_db")
-
+settings = get_settings()
+DATABASE_URL = settings.database_url
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(

@@ -7,19 +7,18 @@ import {
   max,
   line as d3_line,
   curveMonotoneX,
-  timeDay // <--- Asegúrate de importar timeDay
+  timeDay, 
+  bisector 
 } from "d3";
 
-/**
- * Espera un prop llamado `dataSeries` como:
- * [
- * { name: "Serie 1", data: [{ date: Date, value: number }], color: "#8b5cf6" },
- * { name: "Serie 2", data: [{ date: Date, value: number }], color: "#ec4899" }
- * ]
- */
+import {TooltipTrigger, TooltipContent, useTooltipContext } from "./Tooltip";
+
 export default function LineChartMultiple({ dataSeries }) {
-  // Añade este console.log para ver los datos que LineChartMultiple recibe
+  
   console.log("LineChartMultiple - Received dataSeries:", dataSeries);
+  const [activeTooltipData, setActiveTooltipData] = React.useState(null); 
+
+  const { setTooltip } = useTooltipContext("LineChartMultiple"); //
 
   const processedDataSeries = dataSeries.map(serie => ({
     ...serie,
@@ -42,8 +41,10 @@ export default function LineChartMultiple({ dataSeries }) {
     return <div>No hay datos para mostrar (después de procesamiento interno).</div>;
   }
 
-  const uniqueSortedDates = Array.from(new Set(allDates.map(date => date.getTime())))
-    .map(time => new Date(time))
+  const uniqueSortedDates = Array.from(
+    new Set(allDates.map((date) => date.getTime()))
+  )
+    .map((time) => new Date(time))
     .sort((a, b) => a.getTime() - b.getTime());
 
   const minDate = uniqueSortedDates.length > 0 ? uniqueSortedDates[0] : new Date();
@@ -71,6 +72,85 @@ export default function LineChartMultiple({ dataSeries }) {
   console.log("LineChartMultiple - Scales calculated. xScale domain:", xScale.domain(), "yScale domain:", yScale.domain());
   console.log("LineChartMultiple - Unique sorted dates for X axis:", uniqueSortedDates);
   console.log("LineChartMultiple - X axis ticks for rendering:", xScale.ticks(timeDay.every(1))); // El log de los ticks
+
+  const bisectDate = bisector((d) => d.date).left;
+
+  // Handler para el movimiento del puntero para el tooltip
+  const handlePointerMove = (event) => {
+    console.log("Pointer Move Event Fired!");
+    if (event.pointerType === "mouse") {
+      const svgRect = event.currentTarget.getBoundingClientRect();
+
+      const xInViewBox = ((event.clientX - svgRect.left) / svgRect.width) * 100;
+      const hoveredDate = xScale.invert(xInViewBox);
+
+      console.log("Hovered Date:", hoveredDate);
+
+      let closestDataPoint = null;
+      let minDistance = Infinity;
+
+      processedDataSeries.forEach(serie => {
+        if (!Array.isArray(serie.data) || serie.data.length === 0) return;
+
+        // Encuentra el índice del punto de datos más cercano a la fecha sobrevolada
+        const idx = bisectDate(serie.data, hoveredDate, 1); // Busca desde el segundo elemento
+        const d0 = serie.data[idx - 1]; // Punto anterior
+        const d1 = serie.data[idx];     // Punto actual
+
+        let d = null;
+        if (d0 && d1) {
+          // Determina cuál de los dos puntos (anterior o actual) está más cerca de la fecha sobrevolada
+          d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
+        } else if (d0) {
+          d = d0;
+        } else if (d1) {
+          d = d1;
+        }
+
+        if (d) {
+          // Calcula la distancia en el eje X (para evitar tooltips erráticos entre días)
+          const distance = Math.abs(hoveredDate.getTime() - d.date.getTime());
+          // Considera solo puntos que estén a menos de un cierto umbral de tiempo (ej. medio día)
+          if (distance < minDistance && distance < (12 * 60 * 60 * 1000)) { // 12 horas en ms
+            minDistance = distance;
+            closestDataPoint = {
+              ...d,
+              seriesName: serie.name,
+              color: serie.color,
+            };
+          }
+        }
+      });
+      console.log("Closest Data Point:", closestDataPoint);
+      setActiveTooltipData(closestDataPoint);
+
+      if (closestDataPoint) {
+      setActiveTooltipData(closestDataPoint);
+      setTooltip({ x: event.clientX, y: event.clientY }); 
+      // También podemos pasar la posición X del punto en el viewBox (0-100) al estado,
+      // para usarla en la línea vertical.
+      // O calcularla aquí:
+      const xCoordInViewBox = xScale(closestDataPoint.date);
+      setTooltipLineX(xCoordInViewBox); // <-- NUEVO: Establece la posición X de la línea
+      console.log("Setting Tooltip Position in Context:", { x: event.clientX, y: event.clientY });
+    } else {
+      setActiveTooltipData(null);
+      setTooltip(undefined);
+      setTooltipLineX(null); // <-- NUEVO: Oculta la línea si no hay tooltip
+    }
+    }
+  };
+
+  const handlePointerLeave = (event) => {
+    console.log("Pointer Leave Event Fired!");
+    if (event.pointerType === "mouse") {
+      setActiveTooltipData(null);
+      setTooltip(undefined);
+      setTooltipLineX(null); // <-- NUEVO: Oculta la línea
+    }
+  };
+
+  const [tooltipLineX, setTooltipLineX] = React.useState(null);
 
   return (
     <div
@@ -104,7 +184,12 @@ export default function LineChartMultiple({ dataSeries }) {
       <div
         className="absolute inset-0 h-[calc(100%-var(--marginTop)-var(--marginBottom))] w-[calc(100%-var(--marginLeft)-var(--marginRight))] translate-x-[var(--marginLeft)] translate-y-[var(--marginTop)] overflow-visible"
       >
-        <svg viewBox="0 0 100 100" className="overflow-visible w-full h-full" preserveAspectRatio="none">
+        <svg viewBox="0 0 100 100" 
+        className="overflow-visible w-full h-full" 
+        preserveAspectRatio="none"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        >
           {/* Grid lines */}
           {yScale
             .ticks(6)
@@ -123,10 +208,9 @@ export default function LineChartMultiple({ dataSeries }) {
             ))}
 
           {/* Líneas y puntos por serie */}
-          {processedDataSeries.map((serie, idx) => { // <-- Usa processedDataSeries aquí
-            // Asegúrate de que serie.data existe y es un array antes de pasar a 'line'
+          {processedDataSeries.map((serie, idx) => { 
             if (!Array.isArray(serie.data) || serie.data.length === 0) {
-              return null; // No renderiza la serie si no tiene datos válidos
+              return null; 
             }
             const path = line(serie.data);
             if (!path) return null;
@@ -140,23 +224,61 @@ export default function LineChartMultiple({ dataSeries }) {
                   strokeWidth="2"
                   vectorEffect="non-scaling-stroke"
                 />
-                {serie.data.map((d, i) => (
+                {serie.data.map((d, dataIdx) => (
                   <circle
-                    key={i}
+                    key={`${idx}-${dataIdx}`} // Una key única para cada círculo
                     cx={xScale(d.date)}
                     cy={yScale(d.value)}
-                    r="1.5"
-                    fill={serie.color}
+                    r={1} // Radio del círculo, ajusta según tu preferencia
+                    fill={serie.color} // Mismo color que la línea
+                    strokeWidth="7" // Ancho del borde (opcional)
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
                   />
                 ))}
               </g>
             );
           })}
+
+          {tooltipLineX !== null && (
+            <line
+              x1={tooltipLineX}
+              y1={0}
+              x2={tooltipLineX}
+              y2={100}
+              stroke="#cbd5e1"
+              strokeWidth="0.5"
+              strokeDasharray="opacity-0 group-hover/tooltip:opacity-100 text-zinc-300 dark:text-zinc-700 transition-opacity" // Opcional: línea punteada/discontinua
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+
         </svg>
 
-        {/* Eje X */}
-        <div className="translate-y-2">
-          {uniqueSortedDates.map((tickDate, i) => (
+        {/* Tooltip Content */}
+          {activeTooltipData && ( // <-- Muestra el TooltipContent si hay datos
+            <TooltipContent>
+              <div className="flex flex-col text-xs text-zinc-900 dark:text-zinc-50">
+                <span className="font-semibold" style={{ color: activeTooltipData.color }}>
+                  {activeTooltipData.seriesName}
+                </span>
+                <span>
+                  Fecha:{" "}
+                  {activeTooltipData.date.toLocaleDateString("es-ES", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    timeZone: 'UTC'
+                  })}
+                </span>
+                <span>Clics: {activeTooltipData.value}</span>
+              </div>
+            </TooltipContent>
+          )}
+
+          {/* Eje X */}
+          <div className="translate-y-2">
+            {uniqueSortedDates.map((tickDate, i) => (
               <div
                 key={i}
                 style={{
@@ -164,18 +286,17 @@ export default function LineChartMultiple({ dataSeries }) {
                   top: "100%",
                   transform: `translateX(-50%)`,
                 }}
-                className="absolute text-xs text-zinc-500">
-                {
-                tickDate.toLocaleDateString("es-ES", {
+                className="absolute text-xs text-zinc-500"
+              >
+                {tickDate.toLocaleDateString("es-ES", {
                   day: "2-digit",
-                  month: "short",
-                  timeZone: 'UTC' // <-- Añade esta opción
-                })
-                }
+                  month: "2-digit",
+                  timeZone: 'UTC'
+                })}
               </div>
             ))}
+          </div>
         </div>
       </div>
-    </div>
   );
 }

@@ -10,10 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from .models import ClickLog, URL 
-from datetime import datetime, timezone
-from sqlalchemy import func
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import func, text, label
 from .schemas import DonutChartResponse, DonutChartDataItem
-import json
 import requests
 import reverse_geocoder as rg
 import segno
@@ -161,29 +160,59 @@ def clicks_over_time(
     start: datetime = Query(None),
     end: datetime = Query(None),
 ):
+    print(f"Backend: Recibida petición para clicks_over_time. Start: {start}, End: {end}")
+
+    day_expression = label("day", text("TO_CHAR(click_logs.timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD')"))
+
     query = db.query(
         models.URL.key.label("key"),
-        # *** CAMBIO CLAVE AQUÍ: Agrupa por día (YYYY-MM-DD) ***
-        func.strftime('%Y-%m-%d', models.ClickLog.timestamp).label("day"),
+        day_expression, # Usamos la expresión de texto aquí
         func.count().label("clicks")
-    ).join(models.ClickLog).group_by("key", "day").order_by("day")
+    ).join(models.ClickLog)
 
     if start:
         query = query.filter(models.ClickLog.timestamp >= start)
     if end:
         query = query.filter(models.ClickLog.timestamp <= end)
 
-    results = query.all()
+    query = query.group_by(models.URL.key, text("day")).order_by(text("day"))
 
-    grouped = {}
-    # Renombra 'hour' a 'day' en el bucle también para mayor claridad
-    for key, day, clicks in results:
-        grouped.setdefault(key, []).append({
-            "date": day, # Envía solo la fecha del día
-            "value": clicks
+    results = query.all()
+    print(f"Backend: Resultados de la consulta SQL (raw): {results}")
+
+    all_dates = []
+    if start and end:
+        current_date = start.date() # Obtener solo la parte de la fecha
+        end_date_only = end.date()
+        while current_date <= end_date_only:
+            all_dates.append(current_date.strftime('%Y-%m-%d'))
+            current_date += timedelta(days=1)
+
+    grouped_by_url_and_day = {}
+    for r in results:
+        url_key = r.key
+        day_str = r.day # Esto ya es 'YYYY-MM-DD'
+        clicks = r.clicks
+
+        if url_key not in grouped_by_url_and_day:
+            grouped_by_url_and_day[url_key] = {}
+        grouped_by_url_and_day[url_key][day_str] = clicks
+    
+    processed_series = []
+    for url_key, daily_data in grouped_by_url_and_day.items():
+        series_data_for_url = []
+        for date_str in all_dates:
+            value = daily_data.get(date_str, 0) # Obtén el valor, 0 si no hay clics para ese día
+            series_data_for_url.append({
+                "date": date_str,
+                "value": value
+            })
+        processed_series.append({
+            "name": url_key,
+            "data": series_data_for_url
         })
 
-    return [{"name": key, "data": values} for key, values in grouped.items()]
+    return processed_series
 
 @app.get("/analytics/geo_clicks")
 def geo_clicks_analytics(

@@ -124,3 +124,17 @@
     gap: 5px;
     flex: 1;
 }
+
+.qrDisplay{
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+}
+
+.conteinerqr{
+    justify-items:center ;
+}
+
+.qrImage{
+    width: 200px;
+}
