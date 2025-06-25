@@ -25,7 +25,7 @@ export default function Form() {
     setError('');
 
     try {
-    const res = await fetch("http://localhost:8000/generate_qr", {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/generate_qr`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

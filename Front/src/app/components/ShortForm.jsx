@@ -31,7 +31,7 @@ export default function Form() {
       setError('');
       setShortUrl('');
       try {
-        const res = await fetch('http://localhost:8000/url', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ target_url: url, custom_key: null }), // Enviamos la URL al backend

@@ -16,7 +16,7 @@ export default function FormSwitcher() {
   const [showCustomKey, setShowCustomKey] = useState(false);
 
   // Define la URL base de tu API
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

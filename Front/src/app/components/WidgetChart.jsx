@@ -16,7 +16,7 @@ export default function WidgetChart({ id, chartType, dataType, onRemove, startDa
    // Paleta de colores para las líneas (puedes expandirla)
   const lineColors = ["#8b5cf6", "#ec4899", "#10b981", "#ef4444", "#3b82f6", "#f97316", "#a855f7", "#be185d", "#84cc16", "#06b6d4"];
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   useEffect(() => {
     console.log(`[${id}] useEffect triggered for dataType: ${dataType}`);
