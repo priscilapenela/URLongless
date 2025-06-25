@@ -2,7 +2,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Tus configuraciones de Next.js van aquí
+  output: 'export',
   reactStrictMode: true,
   // ... otras configuraciones
 };
